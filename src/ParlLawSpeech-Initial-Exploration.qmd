@@ -1,0 +1,146 @@
+---
+title: "ParlLawSpeech – Initial Exploration"
+author: "Anna"
+format: html
+editor: visual
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Setup
+
+```{r}
+library(tidyverse)
+library(arrow)
+library(lubridate)
+
+ROOT <- "../data/Corpora_PLS_germany/"
+speech_path <- file.path(ROOT, "Corpus_speeches_germany.RDS")
+
+speech <- readRDS(speech_path)
+
+# peek
+glimpse(speech)
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: true
+speech18 <- filter(speech, year(date) == 2018)
+```
+
+```{r}
+speech18_chairs <- speech18 %>%
+  filter(chair) %>%        # same as `chair == TRUE` for logical
+  distinct(speaker)        # unique speakers
+
+speech18_chairs
+```
+
+```{r}
+speech18_partyless <- speech18 %>%
+  filter(is.na(party)) %>%
+  distinct(speaker)
+
+speech18_partyless
+```
+
+e.g. Ole Schröder is Parlamentarischer Staatssekretär des Inneren (eingeblendet im YouTube Video). Norbert Barthle: Parlamentarischer Staatssekretär. Petra Pau -\> Auch Vizepräsidentin des Bundestags. (eingeblendet im YouTube Video.)
+
+-\> Videos sind nach TOP geschnitten. -\> Hier gibt es auch (teils) die Ausschuss-Sitzungen.
+
+The following is an example speech from 2018. It's the first 2018 speech in the ParLaw Dataset: "6. Sitzung Bundestag 17. Januar 2018 komplett" YouTube link to Sitzungsaufzeichnung: 'https://www.youtube.com/watch?v=5c3Uhoe6U3A' Account handle:b\@infofurdieweltvideos2661
+
+```{r}
+# Kaatharina Barley on Elterngeld+. A very calm (almost boring) factual speech.
+cat("Day Session:", date(speech18[2, "date"]), "\n")
+cat("Speaker:", speech18[2, "speaker"], "\n")
+cat("Party:", speech18[2, "party"], "\n")
+cat("Text:", speech18[2, "text"], "...\n")
+cat("Followed by Applause. Not recorded in the transcript.","\n")
+```
+
+This speech is followed by applause, then an interlude by Schäuble, then a question on the talk and then a reply to the talk. Very civilized and factual. No heated discussion. Then a next question. 'Grokoschuafensterpolitik' 'sich feiern lassen' -\> by the AfD!!! Factual reply. next question. There is some off-topic casual speech: compliment on a red blazer. A remark on someones own son -\> personal relation to topic in question but Scherzhaft.
+
+```{r}
+#The AfD speaker question on Barley's speech.
+speech18[9, 2]
+```
+
+for the second AfD question towards Barely, she receives applause for her answer, during the speech. But from whom?.
+
+Schäuble achtet auf redezeiten. Freudnlicher ordnungsruf.
+
+Speech AfD "Wenn Sie mich bei Frage und Antwort auch ansehen könnten" -\> persönlich / auf Angriff. AfD applaudiert ihr. 'Ein Sich nicht reproduzierendes Deutschland'. Von Barley: "dann würd ich sie auch anschauen "verstehe den Sinn ihrer Frage überhaupt nicht" -\> She receives applause from the other parties.
+
+-\> Zeichen für Brandmauer / Solidarität ?
+
+```{r}
+speech18['id' == 123112, 2]
+then 123212 -> # gleichgeschlechtliche Ehe (sie bringen ihre themenschwerpunkte ein, haben issues) category: rebuttal? / abwher? solidarity?
+
+then 125312 -> # rückbezug aufs 'anschauen', geschlechter und islamismus
+then 125412 -> # sehr kurze antowrt, sachlich, she receives applause. short + applause -> abwehr? solidarity?
+```
+
+```{r}
+zwishcen diesen beiden fehlt ein AfD Beitrag. 'Linksextremismus'  zwischen 126712 Schäuble und 126812, 126712.
+```
+
+```{r}
+cat("Day Session:", speech18[2, "date"], "\n")
+cat("Speaker:", speech18[2, "speaker"], "\n")
+cat("Party:", speech18[2, "party"], "\n")
+cat("Text:", substr(speech18[2, "text"], 1, 100), "...\n")
+```
+
+```{r}
+ids <- c(
+  163512,163612,163712,163812,163912,164012,164112,164212,164312,164412,
+  164512,164612,164712,164812,164912,165012,165112,165212,165312,165412,
+  165512,165612,165712,165812,165912,166012,166112,166212,166312,166412,
+  166512,166612,166712
+)
+
+print_speeches <- function(df, ids) {
+  for (id in ids) {
+    # Access by rowname
+    sp <- df[as.character(id), , drop = FALSE]
+
+    if (nrow(sp) == 0) {
+      cat("ID:", id, "not found.\n\n")
+    } else {
+      cat("ID:", id, "\n")
+      cat("Date:", sp$date, "\n")
+      cat("Speaker:", sp$speaker, "\n")
+      cat("Party:", sp$party, "\n")
+      cat("Text (first 200 chars):\n")
+      cat(substr(sp$text, 1, 200), "\n\n")
+      cat("------------------------------------------------------------\n\n")
+    }
+  }
+}
+
+print_speeches(speech18, ids)
+
+```
+
+```{r}
+speech_pattern <- 'Herr Präsident'
+chair_pattern <- 
+chair_pattern <- 'frage' # next text followed by th chair saying 'frage' indicates next text is again a 'question' on another speech.
+interjection_pattern <- 
+  
+Ordnungsruf pattern by chair <- "Regeln", "Ordnungsruf"
+```
+
+Create Variables: - gender - party leader - fraktionsleader - applause ja nein - interjection ja nein - ordnungsruf ja nein, freundlich/konfliktreich. - reply ja nein - question ja nein - new topic/beitrag gesprächsabschnitt (can be wihtin a Tagesordnungspunkt). - welche Sitzung? - hitlerartiges rollendes r ? - überzogene redezeit
+
+es ist prakitsch man hat die chornologische Riehenfolge der beiträge, die TOPS/topics, die Tage, das jahr, die wahlperiode. what can I do with that?
+
+1995 vollständig als Video die Plenarsitzungen.
+
+Let people annotate which anonymous speeches/questions/interjections are
