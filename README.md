@@ -1,4 +1,4 @@
-# Civility in German Parliamentary Debates
+# Incivility in German Parliamentary Debates
 
 This project examines civility norms in German state parliament (Landtag) and Bundestag plenary debates, with a focus on how the entry of the AfD has affected rhetorical norms. It operationalises a three-dimensional civility framework — moral civility, justificatory civility, and politeness — using manual annotation and computational text analysis.
 
