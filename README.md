@@ -1,6 +1,6 @@
-# Rhetorical Norm Erosion in German Parliamentary Debates
+# Civility in German Parliamentary Debates
 
-This project examines how the entry of the AfD into German state parliaments (Landtage) and the Bundestag has affected rhetorical norms and civility in plenary debates. It operationalises Bardon et al.'s three-dimensional civility framework — moral civility, justificatory civility, and politeness — and tests for norm erosion using manual annotation and computational text analysis.
+This project examines civility norms in German state parliament (Landtag) and Bundestag plenary debates, with a focus on how the entry of the AfD has affected rhetorical norms. It operationalises a three-dimensional civility framework — moral civility, justificatory civility, and politeness — using manual annotation and computational text analysis.
 
 ## Repository structure
 
@@ -21,11 +21,11 @@ Two corpora are used:
 
 **StateParl / ParlLawSpeech** — German state parliament plenary debates.  
 Source: [ParlLawSpeech dataset](https://dataverse.harvard.edu/dataverse/ParlLawSpeech).  
-Key files (not tracked, stored in `data/`):
+Key files:
 
-- `paragraphs_2018_annotated.csv` — 2018 speech paragraphs with model-generated labels (sentiment, toxicity, deliberativeness, DIKI incivility)
-- `paragraphs_2021.csv` — 2021 speech paragraphs
-- `protocols.csv`, `mandateMappings.csv` — session metadata and speaker ID crosswalk
+- `annotator/annotations_input.csv` — 2021 speech paragraphs (tracked via Git LFS)
+- `annotator/annotations_input_2018.csv` — 2018 speech paragraphs with model-generated labels: sentiment, toxicity, deliberativeness, DIKI incivility (tracked via Git LFS)
+- `data/protocols.csv`, `data/mandateMappings.csv` — session metadata and speaker ID crosswalk (not tracked)
 
 **Bundestag** — Federal parliament plenary debates, Wahlperioden 18–21 (~74k speeches).  
 Scraped from `https://dserver.bundestag.de/btp/{wp}/{wp}{nr:03d}.xml` using `src/scrape-parliament.ipynb`.
@@ -48,14 +48,14 @@ Open `Rhetoric-Change-in-Plenary-de.Rproj` in RStudio. Packages: `tidyverse`, `a
 
 ## Annotation tool
 
-The Streamlit app in `annotator/` supports manual coding of speech paragraphs on three civility dimensions. Each annotator gets a persistent local ID stored in `annotator/.annotator_id`.
+The Streamlit app in `annotator/` supports manual coding of speech paragraphs on three civility dimensions (politeness, moral civility, justificatory civility) plus interruption type. Each annotator gets a persistent local ID stored in `annotator/.annotator_id`.
 
 ```bash
 source norm_env/bin/activate
 streamlit run annotator/app.py
 ```
 
-Annotations are saved to `annotator/annotations_output.csv`. The app resumes from the first uncoded paragraph on restart and supports switching between datasets (2018 / 2021) and Bundesländer.
+Annotations are saved to `annotator/annotations_output.csv` (not tracked in git). The app resumes from the last coded position on restart and supports switching between datasets (2018 / 2021) and Bundesländer.
 
 See `codebook/Codebook00.xlsx` for label definitions.
 
