@@ -1,0 +1,2 @@
+annotator/annotations_input*.csv filter=lfs diff=lfs merge=lfs -text
+data/paragraphs_2018_annotated.csv filter=lfs diff=lfs merge=lfs -text

@@ -5,15 +5,15 @@ LABELS = {
     },
     "moral": {
         "label": "Moralische Zivilität",
-        "options": ["neutral", "zivil", "inzivil"],
+        "options": ["neutral", "moralisch", "unmoralisch"],
     },
     "justificatory": {
         "label": "Begründungszivilität",
-        "options": ["neutral", "begründend", "unbegründet"],
+        "options": ["neutral", "zivil begründend", "inzivil begründend"],
     },
     "interjection": {
         "label": "Unterbrechungstyp",
-        "options": ["unterstützend - eigen", "unterstützend - fremd", "sachlich herausfordernd", "Störung", "Ordnungsruf"],
+        "options": ["unterstützend - selbst", "unterstützend - fremd", "Zwischenruf", "Ordnungsruf"],
         "multi": True,
         "empty_label": "neutral",
     },
@@ -21,50 +21,43 @@ LABELS = {
 
 DEFINITIONS = {
     "politeness": (
-        "Betrifft ausschließlich *Form und Ton*, nicht den Inhalt. "
-        "**Höflich** = Einhaltung parlamentarischer Umgangsformen: respektvolle Ansprache, "
+        "Betrifft ausschließlich *Form und Ton*, nicht den Inhalt.\n\n"
+        "**Höflich** = Einhaltung parlamentarischer Umgangsformen: Explizit respektvoll und wertschätzend, "
         "keine Beleidigungen, kein Anschreien, kein Spott, keine Bedrohung des öffentlichen "
-        "‚Gesichts' anderer. "
+        "‚Gesichts' anderer.\n\n"
         "**Unhöflich** = Verstöße gegen diese Konventionen (Provokation, Schreien, Verspotten, "
-        "ungebührliche Unterbrechungen). "
-        "Achtung: Eine Äußerung kann höflich *und* moralisch inzivil sein — diese Dimensionen "
-        "sind unabhängig voneinander (Bardon et al.)."
+        "Sarkasmus, vulgäre Sprache, ungebührliche Unterbrechungen, Überziehen der Redezeit, etc.)."
     ),
     "moral": (
-        "Die wichtigste Dimension nach Bardon et al. Betrifft die aktive Anerkennung des "
-        "gleichen Bürger:innenstatus und der Grundrechte aller Beteiligten. "
+        "Betrifft die aktive Anerkennung des "
+        "gleichen Bürger:innenstatus und der Grundrechte aller Beteiligten.\n\n"
         "**Zivil** = die Äußerung bestätigt — explizit oder implizit — dass alle Personen gleiche "
-        "demokratische Rechte und Würde besitzen. "
+        "demokratische Rechte und Würde besitzen.\n\n"
         "**Inzivil** = Ausgrenzungssprache, politische Delegitimierung, Stereotypisierung, "
         "Beleidigungen oder Bedrohungen, die darauf abzielen, anderen das Recht auf Teilnahme "
         "am öffentlichen Diskurs zu entziehen (z.B. rassistische Äußerungen, Angriffe auf die "
-        "Legitimität von Parlamentsmitgliedern oder Institutionen). "
-        "Moralische Zivilität hat Vorrang vor Höflichkeit: Unhöflicher Widerspruch zugunsten "
-        "demokratischer Gleichheit gilt als zivilisierter als höfliche Ausgrenzungsrhetorik."
+        "Legitimität von Parlamentsmitgliedern oder Institutionen)."
     ),
     "justificatory": (
         "Betrifft die Qualität der Begründung und die Bereitschaft zur demokratischen "
-        "Auseinandersetzung. "
-        "**Begründend** = Verwendung überprüfbarer Fakten und öffentlicher Vernunft — Argumente, "
+        "Auseinandersetzung.\n\n"
+        "**Zivil begründend** = Verwendung überprüfbarer Fakten und öffentlicher Vernunft — Argumente, "
         "die alle Bürger:innen nachvollziehen können; Bereitschaft, zuzuhören und auf "
-        "Gegenargumente einzugehen (Reziprozität). "
-        "**Unbegründet** = Einsatz von Täuschung, Übertreibung, rein sektiererischen "
-        "Überzeugungen oder monologischen Strategien (z.B. Redezeit überschreiten, um "
-        "Gegenrede zu verhindern; Verweigerung des Gehörs für Gegenargumente)."
+        "Gegenargumente einzugehen (Reziprozität).\n\n"
+        "**Inzivil begründend** = Einsatz von Täuschung, Übertreibung, rein ideologischen oder religiösen "
+        "Überzeugungen oder monologischen Strategien (z.B. Verweigerung des Gehörs für Gegenargumente)."
     ),
     "interjection": (
-        "Art und Bezug der Unterbrechung zum/zur aktuellen Sprecher:in. "
-        "**Unterstützend - eigen**: Beifall oder Zustimmung aus der eigenen Fraktion. "
+        "Art und Bezug der Unterbrechung zum/zur aktuellen Sprecher:in.\n\n"
+        "**Unterstützend - eigen**: Beifall oder Zustimmung aus der eigenen Fraktion.\n\n"
         "**Unterstützend - fremd**: Beifall oder Zustimmung aus einer anderen Fraktion — "
-        "demokratisch bedeutsam als Zeichen fraktionsübergreifender Solidarität. "
-        "**Sachlich herausfordernd**: inhaltlicher Einwand auf Argumentbasis — zivilisierte "
-        "Opposition, auch wenn unfreundlich im Ton. "
-        "**Störung**: persönlicher Angriff, Spott, Lärm oder Unterbrechung ohne sachlichen "
-        "Bezug — Verstoß gegen Höflichkeit und ggf. moralische Zivilität. "
+        "demokratisch bedeutsam als Zeichen fraktionsübergreifender Solidarität.\n\n"
+        "**Zwischenruf**: verbale Einwürfe oder Reaktionen während der Rede einer anderen Person — "
+        "zu annotieren nach Höflichkeit und moralischer Zivilität wie alle anderen Äußerungen.\n\n"
         "**Ordnungsruf**: institutionelle Reaktion des/der Präsident:in auf eine Normverletzung. "
-        "Kein eigener Inzivilitätstyp, sondern ein Metadaten-Marker: verweist je nach Auslöser "
-        "auf Unhöflichkeit (Lärm, Überziehen der Redezeit) oder moralische Inzivilität "
-        "(rassistische Äußerung, Delegitimierung)."
+        "Kein eigener Inzivilitätstyp, sondern ein Meta-Indikator: verweist je nach Auslöser "
+        "auf Unhöflichkeit (Lärm, Überziehen der Redezeit, etc.) oder moralische Inzivilität "
+        "(rassistische Äußerung, Delegitimierung) – entsprechend in Kombination zu annotieren."
     ),
 }
 

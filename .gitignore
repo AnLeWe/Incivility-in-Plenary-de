@@ -16,7 +16,6 @@ src/scrape-parliament.ipynb
 
 # Data — large files not tracked
 data/
-annotator/annotations_input*.csv
 annotator/annotations_output.csv
 annotator/.annotator_id
 annotator/.annotator_positions.json
