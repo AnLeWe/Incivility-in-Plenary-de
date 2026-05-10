@@ -73,7 +73,7 @@ DATASETS = {
     "2018": {
         "label": "2018",
         "note": "Sentiment · Toxizität · Deliberativität · DIKI",
-        "input_file": "data/paragraphs_2018_annotated.csv",
+        "input_file": "annotator/annotations_input_2018.csv",
         "display_cols": [
             "sentiment_label", "sentiment_score",
             "toxicity_label", "toxicity_score",
