@@ -1,32 +1,75 @@
 LABELS = {
     "politeness": {
-        "label": "Politeness",
-        "options": ["neither", "polite", "impolite"],
+        "label": "Höflichkeit",
+        "options": ["neutral", "höflich", "unhöflich"],
     },
     "moral": {
-        "label": "Moral civility",
-        "options": ["neither", "civil", "incivil"],
+        "label": "Moralische Zivilität",
+        "options": ["neutral", "zivil", "inzivil"],
     },
     "justificatory": {
-        "label": "Justificatory civility",
-        "options": ["neither", "justificatory", "unjustified"],
+        "label": "Begründungszivilität",
+        "options": ["neutral", "begründend", "unbegründet"],
     },
     "interjection": {
-        "label": "Interjection type",
-        "options": ["neither", "supportive", "challenging", "heckling"],
+        "label": "Unterbrechungstyp",
+        "options": ["unterstützend - eigen", "unterstützend - fremd", "sachlich herausfordernd", "Störung", "Ordnungsruf"],
+        "multi": True,
+        "empty_label": "neutral",
     },
 }
 
 DEFINITIONS = {
-    "politeness": "Manner and tone: respectful address, absence of insults or mockery. Concerns *form*, not content.",
-    "moral": "Respect for equal civic standing: does the speech affirm, deny, or neither affect others' equal status as citizens or groups' basic rights? (Bardon: most important dimension.)",
-    "justificatory": "Does the speaker justify positions with reasons all citizens could in principle accept (public-reason type), or with sectarian/unreasoned claims, or neither?",
-    "interjection": "Relation to the current speaker. *Supportive*: backs the speaker (applause, agreement). *Challenging*: opposes the content substantively — civil pushback. *Heckling*: opposes the person — mockery, disruption, ridicule. *Neither*: neutral or procedural.",
+    "politeness": (
+        "Betrifft ausschließlich *Form und Ton*, nicht den Inhalt. "
+        "**Höflich** = Einhaltung parlamentarischer Umgangsformen: respektvolle Ansprache, "
+        "keine Beleidigungen, kein Anschreien, kein Spott, keine Bedrohung des öffentlichen "
+        "‚Gesichts' anderer. "
+        "**Unhöflich** = Verstöße gegen diese Konventionen (Provokation, Schreien, Verspotten, "
+        "ungebührliche Unterbrechungen). "
+        "Achtung: Eine Äußerung kann höflich *und* moralisch inzivil sein — diese Dimensionen "
+        "sind unabhängig voneinander (Bardon et al.)."
+    ),
+    "moral": (
+        "Die wichtigste Dimension nach Bardon et al. Betrifft die aktive Anerkennung des "
+        "gleichen Bürger:innenstatus und der Grundrechte aller Beteiligten. "
+        "**Zivil** = die Äußerung bestätigt — explizit oder implizit — dass alle Personen gleiche "
+        "demokratische Rechte und Würde besitzen. "
+        "**Inzivil** = Ausgrenzungssprache, politische Delegitimierung, Stereotypisierung, "
+        "Beleidigungen oder Bedrohungen, die darauf abzielen, anderen das Recht auf Teilnahme "
+        "am öffentlichen Diskurs zu entziehen (z.B. rassistische Äußerungen, Angriffe auf die "
+        "Legitimität von Parlamentsmitgliedern oder Institutionen). "
+        "Moralische Zivilität hat Vorrang vor Höflichkeit: Unhöflicher Widerspruch zugunsten "
+        "demokratischer Gleichheit gilt als zivilisierter als höfliche Ausgrenzungsrhetorik."
+    ),
+    "justificatory": (
+        "Betrifft die Qualität der Begründung und die Bereitschaft zur demokratischen "
+        "Auseinandersetzung. "
+        "**Begründend** = Verwendung überprüfbarer Fakten und öffentlicher Vernunft — Argumente, "
+        "die alle Bürger:innen nachvollziehen können; Bereitschaft, zuzuhören und auf "
+        "Gegenargumente einzugehen (Reziprozität). "
+        "**Unbegründet** = Einsatz von Täuschung, Übertreibung, rein sektiererischen "
+        "Überzeugungen oder monologischen Strategien (z.B. Redezeit überschreiten, um "
+        "Gegenrede zu verhindern; Verweigerung des Gehörs für Gegenargumente)."
+    ),
+    "interjection": (
+        "Art und Bezug der Unterbrechung zum/zur aktuellen Sprecher:in. "
+        "**Unterstützend - eigen**: Beifall oder Zustimmung aus der eigenen Fraktion. "
+        "**Unterstützend - fremd**: Beifall oder Zustimmung aus einer anderen Fraktion — "
+        "demokratisch bedeutsam als Zeichen fraktionsübergreifender Solidarität. "
+        "**Sachlich herausfordernd**: inhaltlicher Einwand auf Argumentbasis — zivilisierte "
+        "Opposition, auch wenn unfreundlich im Ton. "
+        "**Störung**: persönlicher Angriff, Spott, Lärm oder Unterbrechung ohne sachlichen "
+        "Bezug — Verstoß gegen Höflichkeit und ggf. moralische Zivilität. "
+        "**Ordnungsruf**: institutionelle Reaktion des/der Präsident:in auf eine Normverletzung. "
+        "Kein eigener Inzivilitätstyp, sondern ein Metadaten-Marker: verweist je nach Auslöser "
+        "auf Unhöflichkeit (Lärm, Überziehen der Redezeit) oder moralische Inzivilität "
+        "(rassistische Äußerung, Delegitimierung)."
+    ),
 }
 
-# Dataset definitions.
-# display_cols: extra columns from the input CSV to show read-only during annotation.
-# Add e.g. ["toxicity", "negativity"] to 2018 once those columns exist in the file.
+# Datensatz-Definitionen.
+# display_cols: zusätzliche Spalten aus der Eingabe-CSV, die während der Annotation angezeigt werden.
 DATASETS = {
     "2021": {
         "label": "2021",
@@ -36,7 +79,7 @@ DATASETS = {
     },
     "2018": {
         "label": "2018",
-        "note": "sentiment · toxicity · deliberativeness · DIKI",
+        "note": "Sentiment · Toxizität · Deliberativität · DIKI",
         "input_file": "data/paragraphs_2018_annotated.csv",
         "display_cols": [
             "sentiment_label", "sentiment_score",

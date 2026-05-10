@@ -9,7 +9,7 @@ import json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from annotator.config import LABELS, DEFINITIONS, DATASETS, OUTPUT_FILE
 
-st.set_page_config(page_title="Civility Annotator", layout="wide")
+st.set_page_config(page_title="Zivilität Annotator", layout="wide")
 
 
 ANNOTATOR_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -71,7 +71,7 @@ def save_annotation(para_id, dataset, state, politeness, moral,
         "politeness": politeness,
         "moral": moral,
         "justificatory": justificatory,
-        "interjection": interjection,
+        "interjection": "|".join(interjection) if isinstance(interjection, list) and interjection else "neither",
         "notes": notes,
         "annotator_id": ANNOTATOR_ID,
         "annotator_name": annotator_name.strip() or None,
@@ -84,23 +84,23 @@ def save_annotation(para_id, dataset, state, politeness, moral,
 # ── sidebar: identity + dataset + state ───────────────────────────────────────
 
 with st.sidebar:
-    st.subheader("Annotator")
-    st.caption(f"Your ID: `{ANNOTATOR_ID}`")
-    annotator_name = st.text_input("Your name (optional)")
+    st.subheader("Annotator:in")
+    st.caption(f"Ihre ID: `{ANNOTATOR_ID}`")
+    annotator_name = st.text_input("Ihr Name (optional)")
 
     st.divider()
     def dataset_label(k):
         note = DATASETS[k].get("note", "")
         return f"{DATASETS[k]['label']}  —  {note}" if note else DATASETS[k]["label"]
 
-    dataset_key = st.radio("Dataset", list(DATASETS.keys()), format_func=dataset_label)
+    dataset_key = st.radio("Datensatz", list(DATASETS.keys()), format_func=dataset_label)
 
     df_full = load_input(dataset_key)
     states = sorted(df_full["state"].unique())
     selected_state = st.selectbox("Bundesland", states)
 
     st.divider()
-    st.subheader("Concept definitions")
+    st.subheader("Konzeptdefinitionen")
     for dim, info in LABELS.items():
         with st.expander(info["label"]):
             st.caption(DEFINITIONS[dim])
@@ -149,14 +149,14 @@ if "saved_msg" not in st.session_state:
 
 with st.sidebar:
     st.divider()
-    st.metric("Coded", f"{n_coded} / {total}")
+    st.metric("Kodiert", f"{n_coded} / {total}")
     st.progress(n_coded / total if total > 0 else 0)
 
     st.divider()
-    jump = st.number_input("Jump to row", min_value=0,
+    jump = st.number_input("Springe zu Zeile", min_value=0,
                            max_value=max(total - 1, 0),
                            value=st.session_state[scope_key], step=1)
-    if st.button("Go"):
+    if st.button("Los"):
         st.session_state[scope_key] = int(jump)
         save_position(scope_key, int(jump))
         st.session_state.saved_msg = ""
@@ -201,12 +201,12 @@ revision_count = len(out_here[out_here["para_id"] == str(current["para_id"])])
 # header
 col_left, col_right = st.columns([3, 1])
 with col_left:
-    rev_label = f"  ·  revised {revision_count}×" if revision_count > 1 else ""
+    rev_label = f"  ·  überarbeitet {revision_count}×" if revision_count > 1 else ""
     st.markdown(f"### Row {idx} / {total - 1}  —  {selected_state.upper()} · {dataset_key}{rev_label}")
 with col_right:
     aff = str(current.get("affiliation", "")).upper()
     spk = current.get("speaker_name", "")
-    st.markdown(f"**{aff}** · {spk} · {current['date']} · `{current['protocol']}` seq {current['sequence_number']}")
+    st.markdown(f"**{aff}** · {spk} · {current['date']} · `{current['protocol']}` Folge {current['sequence_number']}")
 
 # three-column layout: prev | current | next
 col_prev, col_curr, col_next = st.columns([1, 2, 1])
@@ -218,7 +218,7 @@ with col_prev:
             st.markdown(f"<p style='color:#888;font-size:0.85em'>{prev_row['content']}</p>",
                         unsafe_allow_html=True)
     else:
-        st.caption("◀ No previous paragraph")
+        st.caption("◀ Kein vorheriger Absatz")
 
 with col_curr:
     if has_existing:
@@ -227,7 +227,7 @@ with col_curr:
             f"**{LABELS[d]['label']}**: {saved.get(d, '—')}"
             for d in LABELS if d in existing_rows.columns
         )
-        st.success(f"Already annotated  —  {label_summary}")
+        st.success(f"Bereits annotiert  —  {label_summary}")
     with st.container(border=True, height=260):
         st.markdown(f"{current['content']}")
         display_cols = [c for c in DATASETS[dataset_key]["display_cols"] if c in df.columns]
@@ -239,7 +239,7 @@ with col_curr:
                     fmt = f"{val:.3f}" if isinstance(val, float) else str(val)
                     parts.append(f"**{c}**: {fmt}")
             if parts:
-                st.caption("Model labels — " + "  ·  ".join(parts))
+                st.caption("Modell-Labels — " + "  ·  ".join(parts))
 
 with col_next:
     if next_row is not None:
@@ -248,7 +248,7 @@ with col_next:
             st.markdown(f"<p style='color:#888;font-size:0.85em'>{next_row['content']}</p>",
                         unsafe_allow_html=True)
     else:
-        st.caption("▶ No following paragraph")
+        st.caption("▶ Kein folgender Absatz")
 
 st.markdown("---")
 
@@ -260,24 +260,38 @@ with st.form("annotation_form", clear_on_submit=False):
     for i, (dim, info) in enumerate(LABELS.items()):
         with form_cols[i]:
             existing_val = get_existing(dim)
-            default_idx  = (info["options"].index(existing_val)
-                            if existing_val in info["options"] else 0)
-            selections[dim] = st.radio(
-                info["label"], options=info["options"],
-                index=default_idx, key=f"radio_{dim}_{scope_key}_{idx}",
-            )
+            if info.get("multi"):
+                empty_label = info.get("empty_label", "neither")
+                # empty selection or saved "neither" → default to []
+                if isinstance(existing_val, str) and existing_val and existing_val != empty_label:
+                    default_multi = [v for v in existing_val.split("|") if v in info["options"]]
+                else:
+                    default_multi = []
+                selections[dim] = st.multiselect(
+                    info["label"], options=info["options"],
+                    default=default_multi,
+                    placeholder="neither",
+                    key=f"multi_{dim}_{scope_key}_{idx}",
+                )
+            else:
+                default_idx = (info["options"].index(existing_val)
+                               if existing_val in info["options"] else 0)
+                selections[dim] = st.radio(
+                    info["label"], options=info["options"],
+                    index=default_idx, key=f"radio_{dim}_{scope_key}_{idx}",
+                )
 
     notes_default = get_existing("notes") or ""
-    notes = st.text_area("Notes (optional)", value=str(notes_default), height=50,
+    notes = st.text_area("Notizen (optional)", value=str(notes_default), height=50,
                          key=f"notes_{scope_key}_{idx}")
 
     nav1, nav2, nav3, nav4 = st.columns([1, 1, 1, 2])
     with nav1:
-        prev_btn = st.form_submit_button("← Previous", use_container_width=True)
+        prev_btn = st.form_submit_button("← Zurück", use_container_width=True)
     with nav2:
-        save_btn = st.form_submit_button("💾 Save & next", use_container_width=True, type="primary")
+        save_btn = st.form_submit_button("💾 Speichern & weiter", use_container_width=True, type="primary")
     with nav3:
-        save_stay = st.form_submit_button("💾 Save (stay)", use_container_width=True)
+        save_stay = st.form_submit_button("💾 Speichern (bleiben)", use_container_width=True)
     with nav4:
         if st.session_state.saved_msg:
             st.success(st.session_state.saved_msg)
@@ -287,7 +301,7 @@ if save_btn:
                     selections["politeness"], selections["moral"],
                     selections["justificatory"], selections["interjection"],
                     notes, annotator_name)
-    st.session_state.saved_msg = f"Saved row {idx}"
+    st.session_state.saved_msg = f"Zeile {idx} gespeichert"
     go_to(idx + 1)
     st.rerun()
 
@@ -296,7 +310,7 @@ if save_stay:
                     selections["politeness"], selections["moral"],
                     selections["justificatory"], selections["interjection"],
                     notes, annotator_name)
-    st.session_state.saved_msg = f"Saved row {idx}"
+    st.session_state.saved_msg = f"Zeile {idx} gespeichert"
     st.rerun()
 
 if prev_btn:
