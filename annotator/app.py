@@ -11,6 +11,12 @@ from annotator.config import LABELS, DEFINITIONS, DATASETS, OUTPUT_FILE
 
 st.set_page_config(page_title="Zivilität Annotator", layout="wide")
 
+st.markdown("""
+<style>
+li:first-child [data-testid="stTooltipHoverTarget"] .e1bi6yfx1 { font-size: 0 !important; }
+li:first-child [data-testid="stTooltipHoverTarget"] .e1bi6yfx1::after { content: "Alle auswählen"; font-size: 0.875rem; }
+</style>
+""", unsafe_allow_html=True)
 
 ANNOTATOR_DIR = os.path.dirname(os.path.abspath(__file__))
 ID_FILE  = os.path.join(ANNOTATOR_DIR, ".annotator_id")
@@ -101,6 +107,7 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Konzeptdefinitionen")
+    st.caption("Die Dimensionen schließen sich nicht gegenseitig aus und können in Kombination auftreten. z.B. kann eine Äußerung höflich *und* moralisch inzivil sein.")
     for dim, info in LABELS.items():
         with st.expander(info["label"]):
             st.caption(DEFINITIONS[dim])
@@ -270,7 +277,7 @@ with st.form("annotation_form", clear_on_submit=False):
                 selections[dim] = st.multiselect(
                     info["label"], options=info["options"],
                     default=default_multi,
-                    placeholder="neither",
+                    placeholder=empty_label,
                     key=f"multi_{dim}_{scope_key}_{idx}",
                 )
             else:
