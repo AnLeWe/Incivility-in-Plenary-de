@@ -50,6 +50,29 @@ After installation, LFS is activated:
 git lfs install
 ```
 
+### uv
+
+Further `uv` is required to create the virtual environment:
+
+1. Install with winget:
+
+```powershell
+winget install -e --id astral-sh.uv
+```
+2. Verify:
+
+```powershell
+uv --version
+```
+
+3. If still not found, add the winget package folder to your user PATH (adjust versioned folder name if needed):
+
+```powershell
+$uvDir = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\astral-sh.uv_Microsoft.Winget.Source_8wekyb3d8bbwe"
+setx PATH "$($env:PATH);$uvDir"
+```
+Then open a new terminal and run `uv --version` again.
+
 
 ### Python
 
