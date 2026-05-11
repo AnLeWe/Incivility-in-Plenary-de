@@ -34,6 +34,23 @@ Scraped from `https://dserver.bundestag.de/btp/{wp}/{wp}{nr:03d}.xml` using `src
 
 ## Setup
 
+### Git LFS
+
+To clone this repo, Git Large File Storage (LFS) has to be installed and initialized on your machine.
+
+LFS is included in Git for Windows. For Mac, it has to be installed: 
+
+```bash
+brew install git-lfs
+```
+
+After installation, LFS is activated:
+
+```bash
+git lfs install
+```
+
+
 ### Python
 
 ```bash
