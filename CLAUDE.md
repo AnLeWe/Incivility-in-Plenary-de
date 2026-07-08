@@ -51,6 +51,16 @@ speech <- readRDS(unz(ZIP_PATH, "Corpus_speeches_germany.RDS"))
 ```
 Render with: `quarto render "src/ParlLawSpeech-Initial-Exploration.qmd"`
 
+## requirements.txt
+
+`requirements.txt` is regenerated from actual imports, not hand-maintained. A git hook
+(`.githooks/pre-commit`) runs `scripts/update_requirements.py` on any commit touching
+`src/`, `labelling/`, or `measurement/` `.py`/`.ipynb` files, and re-stages the result.
+One-time setup per clone: `uv tool install pipreqs` and `git config core.hooksPath .githooks`.
+`scripts/update_requirements.py` has an `ALWAYS_INCLUDE` allowlist for packages pandas needs
+as I/O engines (e.g. `openpyxl` for `pd.read_excel`) that import-scanning can't detect since
+no file ever does `import openpyxl` by name — add to that set if a similar case comes up.
+
 ## README
 
 `README.md` is generated — the source is `README.qmd`, which cites `references/references.bib`

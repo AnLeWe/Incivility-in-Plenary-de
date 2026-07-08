@@ -18,7 +18,13 @@ library(lubridate)
 
 ZIP_PATH <- file.path(Sys.getenv("DATA_ROOT"), "raw", "Corpora_PLS_germany.zip")
 
-speech <- readRDS(unz(ZIP_PATH, "Corpus_speeches_germany.RDS"))
+# readRDS(unz(...)) fails on this file with "unknown input format" -- unz()
+# connections aren't reliably seekable, which breaks RDS format auto-detection
+# on larger files. Extract to a temp file first instead.
+tmp_rds <- tempfile(fileext = ".RDS")
+unzip(ZIP_PATH, files = "Corpus_speeches_germany.RDS", exdir = dirname(tmp_rds), junkpaths = TRUE)
+speech <- readRDS(file.path(dirname(tmp_rds), "Corpus_speeches_germany.RDS"))
+file.remove(file.path(dirname(tmp_rds), "Corpus_speeches_germany.RDS"))
 
 # peek
 glimpse(speech)
