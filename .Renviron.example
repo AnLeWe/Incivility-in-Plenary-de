@@ -2,3 +2,4 @@
 # project) and set DATA_ROOT to your own local path to the shared Google
 # Drive data folder. .Renviron is gitignored — never commit your actual path.
 DATA_ROOT="/path/to/your/GoogleDrive/My Drive/my_projects/M.A. Parliament/Code and Data/data"
+MANIFESTO_API_KEY="your-manifesto-project-api-key"
