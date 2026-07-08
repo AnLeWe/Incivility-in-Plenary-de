@@ -7,7 +7,7 @@ import uuid
 import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from annotator.config import LABELS, DEFINITIONS, DATASETS, OUTPUT_FILE
+from labelling.config import LABELS, DEFINITIONS, DATASETS, OUTPUT_FILE
 
 st.set_page_config(page_title="Zivilität Annotator", layout="wide")
 
@@ -53,7 +53,10 @@ def save_position(scope_key: str, idx: int):
 @st.cache_data
 def load_input(dataset_key):
     path = DATASETS[dataset_key]["input_file"]
-    df = pd.read_csv(path, low_memory=False)
+    try:
+        df = pd.read_csv(path, low_memory=False, encoding="utf-8")
+    except UnicodeDecodeError:
+        df = pd.read_csv(path, low_memory=False, encoding="latin-1")
     if "para_id" not in df.columns and "id" in df.columns:
         df = df.rename(columns={"id": "para_id"})
     df["para_id"] = df["para_id"].astype(str)
@@ -77,7 +80,7 @@ def save_annotation(para_id, dataset, state, politeness, moral,
         "politeness": politeness,
         "moral": moral,
         "justificatory": justificatory,
-        "interjection": "|".join(interjection) if isinstance(interjection, list) and interjection else "neither",
+        "interjection": "|".join(interjection) if isinstance(interjection, list) and interjection else "neutral",
         "notes": notes,
         "annotator_id": ANNOTATOR_ID,
         "annotator_name": annotator_name.strip() or None,
