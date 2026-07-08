@@ -16,10 +16,9 @@ library(tidyverse)
 library(arrow)
 library(lubridate)
 
-ROOT <- "../data/Corpora_PLS_germany/"
-speech_path <- file.path(ROOT, "Corpus_speeches_germany.RDS")
+ZIP_PATH <- file.path(Sys.getenv("DATA_ROOT"), "raw", "Corpora_PLS_germany.zip")
 
-speech <- readRDS(speech_path)
+speech <- readRDS(unz(ZIP_PATH, "Corpus_speeches_germany.RDS"))
 
 # peek
 glimpse(speech)

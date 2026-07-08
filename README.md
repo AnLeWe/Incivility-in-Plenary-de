@@ -16,7 +16,6 @@ and computational text analysis.
 ├── labelling/              Streamlit-based manual annotation tool + transformer auto-labelling
 ├── measurement/            Turns labels into the constructed variables/indices used in analysis
 ├── analysis/               R scripts and Quarto documents for statistical analysis
-├── data/                   Raw and processed datasets (not tracked in git; see Data below)
 ├── codebook/               Annotation codebooks and dataset documentation
 ├── references/             Key literature
 ├── figures/                Output plots and tables
@@ -44,9 +43,8 @@ files:
 `https://dserver.bundestag.de/btp/{wp}/{wp}{nr:03d}.xml` using
 `src/scrape-parliament.ipynb`.
 
-**AfD entry dates** — `afd_entry.xlsx` (currently local-only under
-`data/raw/`, not yet migrated to `DATA_ROOT`) — manually curated, used
-as treatment variable.
+**AfD entry dates** — `DATA_ROOT/raw/afd_entry.xlsx` — manually curated,
+used as treatment variable.
 
 ## Setup
 
