@@ -29,8 +29,8 @@ labelling now and a claim-verification pipeline later.
 ```
 Incivility-in-Plenary-de/
 ├── README.md              # setup, data access, how to reproduce each stage
-├── LICENSE                # code license (data separately licensed/restricted)
-├── CITATION.cff           # citability once published
+├── LICENSE                # code license (data separately licensed/restricted) — gitignored for now
+├── CITATION.cff           # citability once published — gitignored for now
 ├── .env.example           # DATA_ROOT=...
 ├── requirements.txt / environment.yml
 ├── CLAUDE.md              # kept, public-safe
@@ -39,6 +39,7 @@ Incivility-in-Plenary-de/
 ├── labelling/             # renamed from annotator/; manual + transformer-based labelling
 │   ├── annotator_app.py   # was annotator/app.py
 │   └── transformer_labels.py   # promoted from src/sentToxDelib*.ipynb once stable
+├── measurement/           # turns labels into the constructed variables/indices used in analysis/
 ├── analysis/              # R / Quarto statistical analysis (unchanged)
 ├── codebook/               (unchanged)
 ├── paper/                  (unchanged)
@@ -51,6 +52,16 @@ Incivility-in-Plenary-de/
 the transformer auto-labelling scripts — one home for "how paragraphs get labels." The two
 `sentToxDelib*.ipynb` notebooks get cleaned into a proper script once the labelling pipeline
 stabilizes; notebooks stay fine for exploration.
+
+`measurement/` is a distinct stage between `labelling/` and `analysis/`: `labelling/` produces
+raw per-paragraph labels (sentiment, toxicity, deliberativeness, incivility dimensions);
+`measurement/` aggregates/transforms those into the actual constructed variables and indices
+(e.g. per-speech or per-session civility scores) that `analysis/` consumes. Keeping this as its
+own folder keeps each stage's inputs and outputs unambiguous.
+
+`LICENSE` and `CITATION.cff` are drafted locally but added to `.gitignore` for now — the repo
+isn't ready to signal "open source" or "citable" until the thesis/paper actually goes public.
+Remove them from `.gitignore` and commit them at publication time.
 
 ## C — Git history & LFS cleanup
 
@@ -84,7 +95,10 @@ a future, likely heavier, still-undesigned pipeline (probably retrieval + NLI/LL
   designed) needs something MPS can't handle well — e.g. a larger LLM, or ops without MPS
   support. Decision deferred to when that pipeline is designed.
 - **Colab: fallback only**, not the default dev environment — kept for CUDA-only libraries or
-  freeing up the laptop, given the existing subscription.
+  freeing up the laptop, given the existing subscription. If needed from VS Code, a Colab kernel
+  can be exposed as a remote Jupyter server via a tunnel (e.g. colab-ssh/ngrok) and connected to
+  through VS Code's Jupyter extension ("Existing Jupyter Server") — not native, a bit fragile,
+  set up only if this fallback is actually needed.
 - **M1 Air, 16GB: not a compute tier.** Fine for writing/reading/light testing; too weak for
   batch transformer inference — don't route work to it.
 - Both the Mac and the cluster read data via the same `DATA_ROOT` mechanism from Section A;
