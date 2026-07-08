@@ -3,7 +3,9 @@
 Exposes a live Colab kernel as a remote Jupyter server so VS Code's Jupyter extension can
 connect to it directly, instead of working in the Colab browser UI. Fallback/GPU tier per
 `docs/superpowers/specs/2026-07-07-repo-publishing-infra-design.md` Section D — not the
-default dev environment, use when the M5 MacBook Pro isn't enough (e.g. CUDA-only libraries).
+default dev environment, use when local compute isn't enough (e.g. CUDA-only libraries).
+Platform-independent: the Colab-side cell runs on Google's servers regardless of your OS, and
+the VS Code steps work identically on Windows/Mac/Linux.
 
 This is unofficial and a bit fragile: the tunnel dies whenever the Colab runtime resets, so
 the Colab-side cell below has to be re-run at the start of every session.
