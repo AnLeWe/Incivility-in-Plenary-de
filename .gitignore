@@ -20,6 +20,10 @@ annotator/annotations_output.csv
 annotator/.annotator_id
 annotator/.annotator_positions.json
 
+# Local machine config
+.env
+.Renviron
+
 # OS
 .DS_Store
 ~$*.xlsx
