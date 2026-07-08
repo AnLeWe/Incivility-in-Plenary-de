@@ -24,8 +24,8 @@ Two corpora are used:
 Source: [ParlLawSpeech dataset](https://dataverse.harvard.edu/dataverse/ParlLawSpeech).  
 Key files:
 
-- `labelling/annotations_input.csv` — 2021 speech paragraphs (tracked via Git LFS)
-- `labelling/annotations_input_2018.csv` — 2018 speech paragraphs with model-generated labels: sentiment, toxicity, deliberativeness, DIKI incivility (tracked via Git LFS)
+- `annotations_input.csv` (in `DATA_ROOT`) — 2021 speech paragraphs
+- `annotations_input_2018.csv` (in `DATA_ROOT`) — 2018 speech paragraphs with model-generated labels: sentiment, toxicity, deliberativeness, DIKI incivility
 - `data/protocols.csv`, `data/mandateMappings.csv` — session metadata and speaker ID crosswalk (not tracked)
 
 **Bundestag** — Federal parliament plenary debates, Wahlperioden 18–21 (~74k speeches).  
