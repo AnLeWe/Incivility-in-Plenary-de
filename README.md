@@ -35,6 +35,22 @@ Scraped from `https://dserver.bundestag.de/btp/{wp}/{wp}{nr:03d}.xml` using `src
 
 ## Setup
 
+### Git LFS
+
+To clone this repo, Git Large File Storage (LFS) has to be installed and initialized on your machine.
+
+LFS is included in Git for Windows. For Mac, it has to be installed:
+
+```bash
+brew install git-lfs
+```
+
+After installation, LFS is activated:
+
+```bash
+git lfs install
+```
+
 ### Data access
 
 Bulk data (`data/`, plus the large LFS-tracked CSVs) lives in a shared Google Drive folder, not
@@ -47,6 +63,29 @@ cp .Renviron.example .Renviron   # R/RStudio — same, auto-loaded on project op
 ```
 
 Both files are gitignored — each person sets their own path without touching tracked files.
+
+### uv
+
+`uv` is required to create the Python virtual environment:
+
+1. Install with winget:
+
+```powershell
+winget install -e --id astral-sh.uv
+```
+2. Verify:
+
+```powershell
+uv --version
+```
+
+3. If still not found, add the winget package folder to your user PATH (adjust versioned folder name if needed):
+
+```powershell
+$uvDir = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\astral-sh.uv_Microsoft.Winget.Source_8wekyb3d8bbwe"
+setx PATH "$($env:PATH);$uvDir"
+```
+Then open a new terminal and run `uv --version` again.
 
 ### Python
 
