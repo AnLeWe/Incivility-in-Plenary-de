@@ -4,3 +4,5 @@ requests
 lxml
 tqdm
 openpyxl
+beautifulsoup4
+defusedxml

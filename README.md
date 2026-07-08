@@ -17,7 +17,7 @@ and computational text analysis.
 ├── measurement/            Turns labels into the constructed variables/indices used in analysis
 ├── analysis/               R scripts and Quarto documents for statistical analysis
 ├── codebook/               Annotation codebooks and dataset documentation
-├── references/             Key literature
+├── references/             Project bibliography (references.bib)
 ├── figures/                Output plots and tables
 └── paper/                  Manuscript drafts
 ```
@@ -48,23 +48,6 @@ used as treatment variable.
 
 ## Setup
 
-### Git LFS
-
-To clone this repo, Git Large File Storage (LFS) has to be installed and
-initialized on your machine.
-
-LFS is included in Git for Windows. For Mac, it has to be installed:
-
-``` bash
-brew install git-lfs
-```
-
-After installation, LFS is activated:
-
-``` bash
-git lfs install
-```
-
 ### Data access
 
 All bulk data lives in a shared Google Drive folder, not GitHub. Install
@@ -93,7 +76,15 @@ DATA_ROOT/
 
 ### uv
 
-`uv` is required to create the Python virtual environment:
+`uv` is required to create the Python virtual environment.
+
+**Mac/Linux:**
+
+``` bash
+brew install uv
+```
+
+**Windows:**
 
 1.  Install with winget:
 
