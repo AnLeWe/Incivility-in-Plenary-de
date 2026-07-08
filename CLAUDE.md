@@ -45,6 +45,13 @@ speech <- readRDS(file.path(ROOT, "Corpus_speeches_germany.RDS"))
 ```
 Render with: `quarto render "Py/ParlLawSpeech – Initial Exploration.qmd"`
 
+## README
+
+`README.md` is generated — the source is `README.qmd`, which cites `references/references.bib`
+via Quarto/pandoc (`[@citekey]` syntax, same mechanism as R Markdown). After editing `README.qmd`,
+regenerate with `quarto render README.qmd` before committing; never hand-edit `README.md` directly,
+since the next render will overwrite it.
+
 ## Research Context
 
 The core research question concerns how AfD entry into state parliaments affects rhetorical norms. Key analytical variables being developed:
