@@ -6,44 +6,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a research project studying rhetorical change in German parliamentary plenary sessions, focusing on norm erosion. It combines two datasets and two language environments:
 
-- **Python** (`Py/`): Data scraping and initial exploration, run in Jupyter/Colab
+- **Python** (`src/`): Data scraping and initial exploration, run in Jupyter/Colab
 - **R** (`.Rproj`): Statistical analysis and data wrangling via RStudio (2-space indentation, UTF-8)
+
+All bulk data lives outside the repo, in a shared Google Drive folder pointed to by the
+`DATA_ROOT` env var (see README's "Data access" section). There is no local `data/` folder —
+copy `.env.example`/`.Renviron.example` and set `DATA_ROOT` before running anything that touches
+data. `DATA_ROOT` is organized by pipeline stage: `raw/`, `labelling/`, `measurement/`,
+`processed/`, `docs/`, `resources/`.
 
 ## Data Sources
 
 ### Bundestag data (scraped via Python)
-- Scraped from `https://dserver.bundestag.de/btp/{wp}/{wp}{nr:03d}.xml` using `Py/scrape-parliament.ipynb`
+- Scraped from `https://dserver.bundestag.de/btp/{wp}/{wp}{nr:03d}.xml` using `src/scrape-parliament.ipynb`
 - Covers Wahlperioden (electoral terms) 18–21; output: ~74k speeches as CSV
 - Fields: `id`, `text`, `date`, `session`, `electoralTerm`, `firstName`, `lastName`, `politicianId`, `factionId`, `documentUrl`, `positionShort`, `positionLong`
 
 ### StateParl / ParlLawSpeech dataset (pre-packaged)
-- `data/stateparl_csv/` — three CSVs extracted from `stateparl_csv.zip`:
+- `DATA_ROOT/raw/stateparl_csv.zip` — extracts to three CSVs:
   - `paragraphs.csv`: paragraph-level speech data; key fields: `id`, `protocol`, `state`, `period`, `nth`, `date`, `sequence_number`, `speaker_id`, `speaker_name`, `affiliation`, `content`
   - `protocols.csv`: session-level metadata (state, period, session number, date, URL)
   - `mandateMappings.csv`: links StateParl mandate IDs to StatePol IDs
-- `data/Corpora_PLS_germany.zip` → `Corpus_speeches_germany.RDS`: R-native speech corpus (loaded with `readRDS`)
-- Codebooks: `data/Codebook_ParlLawSpeech.pdf` and `data/20250211_StateParl_documentation_and_codebook_release-candidate_final.pdf`
+- `DATA_ROOT/raw/Corpora_PLS_germany.zip` → `Corpus_speeches_germany.RDS`: R-native speech corpus (read directly from the zip with `readRDS(unz(...))`, no extraction needed)
+- Codebooks: `DATA_ROOT/docs/Codebook_ParlLawSpeech.pdf` and `DATA_ROOT/docs/20250211_StateParl_documentation_and_codebook_release-candidate_final.pdf`
 
 ### AfD entry data
-- `data/afd_entry.xlsx`: manually curated data on AfD entry into state parliaments (used as a treatment variable)
+- `DATA_ROOT/raw/afd_entry.xlsx`: manually curated data on AfD entry into state parliaments (used as a treatment variable)
 
 ## Running the Code
 
 ### Python notebooks
-The notebooks were developed for Google Colab (note `drive.mount` calls in `data_exploration.ipynb`). To run locally, update `FILE_PATH` to the local path, e.g.:
+The notebooks were developed for Google Colab (note `drive.mount` calls in some notebooks). Scripts and notebooks read data via the `DATA_ROOT` env var (`os.environ["DATA_ROOT"]`), not a hardcoded path — e.g.:
 ```python
-FILE_PATH = '../data/stateparl_csv/paragraphs.csv'
+DATA_FILE = os.path.join(os.environ["DATA_ROOT"], "raw", "paragraphs.csv")
 ```
 Dependencies: `requests`, `lxml`, `pandas`, `numpy`, `matplotlib`, `tqdm`
 
 ### R / Quarto
-Open `Incivility-in-Plenary-de.Rproj` in RStudio. The Quarto doc `Py/ParlLawSpeech – Initial Exploration.qmd` uses:
+Open `Incivility-in-Plenary-de.Rproj` in RStudio. The Quarto doc `src/ParlLawSpeech-Initial-Exploration.qmd` uses:
 ```r
 library(tidyverse); library(arrow); library(lubridate)
-ROOT <- "data/Corpora_PLS_germany/"
-speech <- readRDS(file.path(ROOT, "Corpus_speeches_germany.RDS"))
+ZIP_PATH <- file.path(Sys.getenv("DATA_ROOT"), "raw", "Corpora_PLS_germany.zip")
+speech <- readRDS(unz(ZIP_PATH, "Corpus_speeches_germany.RDS"))
 ```
-Render with: `quarto render "Py/ParlLawSpeech – Initial Exploration.qmd"`
+Render with: `quarto render "src/ParlLawSpeech-Initial-Exploration.qmd"`
 
 ## README
 
