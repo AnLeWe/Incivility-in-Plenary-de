@@ -24,6 +24,11 @@ labelling/.annotator_positions.json
 .env
 .Renviron
 
+# Editor / tool artifacts
+.vscode/
+.playwright-mcp/
+.sixth/
+
 # OS
 .DS_Store
 ~$*.xlsx
