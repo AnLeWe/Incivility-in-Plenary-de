@@ -58,7 +58,7 @@ uv pip install -r requirements.txt
 
 ### R
 
-Open `Rhetoric-Change-in-Plenary-de.Rproj` in RStudio. Packages: `tidyverse`, `arrow`, `lubridate`.
+Open `Incivility-in-Plenary-de.Rproj` in RStudio. Packages: `tidyverse`, `arrow`, `lubridate`.
 
 ## Annotation tool
 

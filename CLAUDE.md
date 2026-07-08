@@ -37,7 +37,7 @@ FILE_PATH = '../data/stateparl_csv/paragraphs.csv'
 Dependencies: `requests`, `lxml`, `pandas`, `numpy`, `matplotlib`, `tqdm`
 
 ### R / Quarto
-Open `Rhetoric-Change-in-Plenary-de.Rproj` in RStudio. The Quarto doc `Py/ParlLawSpeech – Initial Exploration.qmd` uses:
+Open `Incivility-in-Plenary-de.Rproj` in RStudio. The Quarto doc `Py/ParlLawSpeech – Initial Exploration.qmd` uses:
 ```r
 library(tidyverse); library(arrow); library(lubridate)
 ROOT <- "data/Corpora_PLS_germany/"
