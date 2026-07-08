@@ -32,20 +32,21 @@ Source: [ParlLawSpeech
 dataset](https://dataverse.harvard.edu/dataverse/ParlLawSpeech). Key
 files:
 
-- `annotations_input.csv` (in `DATA_ROOT`) — 2021 speech paragraphs
-- `annotations_input_2018.csv` (in `DATA_ROOT`) — 2018 speech paragraphs
-  with model-generated labels: sentiment, toxicity, deliberativeness,
-  DIKI incivility
-- `data/protocols.csv`, `data/mandateMappings.csv` — session metadata
-  and speaker ID crosswalk (not tracked)
+- `DATA_ROOT/labelling/annotations_input.csv` — 2021 speech paragraphs
+- `DATA_ROOT/labelling/annotations_input_2018.csv` — 2018 speech
+  paragraphs with model-generated labels: sentiment, toxicity,
+  deliberativeness, DIKI incivility
+- `DATA_ROOT/raw/protocols.csv`, `DATA_ROOT/raw/mandateMappings.csv` —
+  session metadata and speaker ID crosswalk
 
 **Bundestag** — Federal parliament plenary debates, Wahlperioden 18–21
 (~74k speeches). Scraped from
 `https://dserver.bundestag.de/btp/{wp}/{wp}{nr:03d}.xml` using
 `src/scrape-parliament.ipynb`.
 
-**AfD entry dates** — `data/afd_entry.xlsx` — manually curated, used as
-treatment variable.
+**AfD entry dates** — `afd_entry.xlsx` (currently local-only under
+`data/raw/`, not yet migrated to `DATA_ROOT`) — manually curated, used
+as treatment variable.
 
 ## Setup
 
@@ -68,9 +69,9 @@ git lfs install
 
 ### Data access
 
-Bulk data (`data/`, plus the large LFS-tracked CSVs) lives in a shared
-Google Drive folder, not GitHub. Install the Drive desktop app, sync the
-shared folder, then point the project at your local copy:
+All bulk data lives in a shared Google Drive folder, not GitHub. Install
+the Drive desktop app, sync the shared folder, then point the project at
+your local copy:
 
 ``` bash
 cp .env.example .env       # Python — edit DATA_ROOT to your local Drive path
@@ -78,7 +79,19 @@ cp .Renviron.example .Renviron   # R/RStudio — same, auto-loaded on project op
 ```
 
 Both files are gitignored — each person sets their own path without
-touching tracked files.
+touching tracked files. Scripts read from and write to `DATA_ROOT`
+directly (it’s a normal synced folder, so writes show up in Drive like
+any other local file). `DATA_ROOT` is organized by pipeline stage:
+
+``` text
+DATA_ROOT/
+├── raw/                    Scraped/downloaded source data (paragraphs, protocols, motions, ...)
+├── labelling/              Labelling-stage inputs and checkpoints (annotations_input*.csv, ckpt_*.csv)
+├── measurement/            Constructed variables/indices consumed by analysis/
+├── processed/              Other derived outputs from src/ preprocessing scripts
+├── docs/                   Codebooks and reference PDFs for the datasets above
+└── resources/              External lexicons/dictionaries (e.g. DIKI incivility word lists)
+```
 
 ### uv
 

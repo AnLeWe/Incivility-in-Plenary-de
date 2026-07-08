@@ -71,13 +71,13 @@ DATASETS = {
     "2021": {
         "label": "2021",
         "note": "",
-        "input_file": os.path.join(DATA_ROOT, "annotations_input.csv"),
+        "input_file": os.path.join(DATA_ROOT, "labelling", "annotations_input.csv"),
         "display_cols": [],
     },
     "2018": {
         "label": "2018",
         "note": "Sentiment · Toxizität · Deliberativität · DIKI",
-        "input_file": os.path.join(DATA_ROOT, "annotations_input_2018.csv"),
+        "input_file": os.path.join(DATA_ROOT, "labelling", "annotations_input_2018.csv"),
         "display_cols": [
             "sentiment_label", "sentiment_score",
             "toxicity_label", "toxicity_score",

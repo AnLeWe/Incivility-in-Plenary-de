@@ -14,8 +14,8 @@ import os
 from pathlib import Path
 
 DATA_ROOT = Path(os.environ["DATA_ROOT"])
-DATA_FILE = DATA_ROOT / "paragraphs_2018.csv"
-OUT_FILE  = DATA_ROOT / "fliesstext_bb_20180627.txt"
+DATA_FILE = DATA_ROOT / "raw" / "paragraphs_2018.csv"
+OUT_FILE  = DATA_ROOT / "processed" / "fliesstext_bb_20180627.txt"
 
 TARGET_DATE  = "2018-06-27"
 TARGET_STATE = "bb"
@@ -59,6 +59,7 @@ for r in bb_rows[start_idx:]:
 
 fliesstext = " ".join(parts)
 
+OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 OUT_FILE.write_text(fliesstext, encoding="utf-8")
 print(f"\nFließtext saved to: {OUT_FILE}")
 print(f"Characters: {len(fliesstext):,}")
