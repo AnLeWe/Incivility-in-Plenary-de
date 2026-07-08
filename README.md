@@ -111,7 +111,7 @@ Then open a new terminal and run `uv --version` again.
 ### Python
 
 ``` bash
-uv venv norm_env --python 3.14
+uv venv norm_env    # picks up the version pinned in .python-version
 source norm_env/bin/activate
 uv pip install -r requirements.txt
 ```

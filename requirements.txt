@@ -1,8 +1,8 @@
-streamlit
-pandas
-requests
-lxml
-tqdm
-openpyxl
 beautifulsoup4
 defusedxml
+lxml
+openpyxl
+pandas
+requests
+streamlit
+tqdm

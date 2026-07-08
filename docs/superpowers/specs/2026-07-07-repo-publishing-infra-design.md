@@ -19,10 +19,13 @@ labelling now and a claim-verification pipeline later.
 - No hardcoded paths. A `DATA_ROOT` environment variable is read by both Python and R code:
   - Python: `os.environ["DATA_ROOT"]`
   - R: `Sys.getenv("DATA_ROOT")`
-- `.env.example` at repo root documents the variable (`DATA_ROOT=/path/to/GoogleDrive/NormErosion-data`);
-  each person copies it to a gitignored `.env` with their own local Drive mount path.
-- `data/` stays gitignored exactly as today — this only formalizes *where* it physically lives
-  and makes the path portable across machines and compute environments.
+- `.env.example` (Python) and `.Renviron.example` (R/RStudio) at repo root document the variable
+  (`DATA_ROOT=/path/to/GoogleDrive/NormErosion-data`); each person copies these to gitignored
+  `.env`/`.Renviron` files with their own local Drive mount path.
+- There is no local `data/` folder — `DATA_ROOT` points directly at the synced Drive folder,
+  organized by pipeline stage (`raw/`, `labelling/`, `measurement/`, `processed/`, `docs/`,
+  `resources/`). (This supersedes the original plan below, which assumed a local `data/` folder
+  backed by Drive; that folder was deleted once all data was confirmed migrated to Drive.)
 
 ## B — Repo structure (publishable layout)
 
@@ -44,8 +47,7 @@ Incivility-in-Plenary-de/
 ├── codebook/               (unchanged)
 ├── paper/                  (unchanged)
 ├── references/             (unchanged)
-├── figures/                (unchanged)
-└── data/                  # gitignored; DATA_ROOT points here or to Drive
+└── figures/                (unchanged)
 ```
 
 `annotator/` → `labelling/` because it will hold both the manual Streamlit annotation tool and
@@ -78,7 +80,11 @@ Remove them from `.gitignore` and commit them at publication time.
    - Use `git filter-repo` to strip these files from all history.
    - Move them into the Drive-backed `data/` (or `labelling/` equivalent) folder instead.
    - Force-push the rewritten history to `origin`.
-   - Safe here: sole author, no other clones/collaborators on this repo to disrupt.
+   - Assumed here: sole author, no other clones/collaborators on this repo to disrupt. **This
+     assumption turned out to be false** — a collaborator (supervisor Susumu Shikano) had an
+     existing clone with 2 unpushed commits. Those were merged into `main` first, the collaborator
+     was informed of the upcoming rewrite, and the force-push only proceeded after explicit
+     confirmation — see the executed history for the actual sequence.
    - This is the one irreversible-ish step in the plan — confirm explicitly immediately before
      running the force-push, even though already approved here.
 
