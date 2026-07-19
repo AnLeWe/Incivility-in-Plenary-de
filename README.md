@@ -26,17 +26,27 @@ and computational text analysis.
 
 Two corpora are used:
 
-**StateParl / ParlLawSpeech** — German state parliament plenary debates.
-Source: [ParlLawSpeech
-dataset](https://dataverse.harvard.edu/dataverse/ParlLawSpeech). Key
-files:
+**StateParl** (Nguyen et al. 2026) — German state parliament plenary
+debates. Current version: v3 (released 2026-07-01, doi.org/10.7802/3062)
+— 16,078,467 paragraphs, 1,072,934 speeches, 9,492 protocols, 17,543
+mandates; coverage 2000–2025. Key files, in
+`DATA_ROOT/raw/stateparl_v3_parquet/`:
+
+- `stateparl_v3_paragraphs.parquet` — one row per paragraph,
+  incl. `mandate_id`, `affiliation`, `content`
+- `stateparl_v3_speeches.parquet` — one row per speech (consecutive
+  same-speaker paragraphs)
+- `stateparl_v3_protocols.parquet` — session metadata
+- `stateparl_v3_mandates.parquet` — speaker/mandate crosswalk
+
+Codebook: `codebook/StateParl_Documentation_v3-0-0.pdf`. Legacy v2
+(2025, doi.org/10.7802/2854) is CSV-based and no longer used by the
+pipeline.
 
 - `DATA_ROOT/labelling/annotations_input.csv` — 2021 speech paragraphs
 - `DATA_ROOT/labelling/annotations_input_2018.csv` — 2018 speech
   paragraphs with model-generated labels: sentiment, toxicity,
   deliberativeness, DIKI incivility
-- `DATA_ROOT/raw/protocols.csv`, `DATA_ROOT/raw/mandateMappings.csv` —
-  session metadata and speaker ID crosswalk
 
 **Bundestag** — Federal parliament plenary debates, Wahlperioden 18–21
 (~74k speeches). Scraped from
@@ -157,6 +167,16 @@ Bardon, Aurélia, Matteo Bonotti, Steven T. Zech, and William Ridge.
 2023. “Disaggregating Civility: Politeness, Public-Mindedness and Their
 Connection.” *British Journal of Political Science* 53 (1): 308–25.
 <https://doi.org/10.1017/S000712342100065X>.
+
+</div>
+
+<div id="ref-nguyenDecodingGermanPolitics2026" class="csl-entry">
+
+Nguyen, Christoph, Eric Beltermann, Sabine Kropp, and Antonios Souris.
+2026. “Decoding German Politics with StateParl—A Text Corpus of Plenary
+Protocols in the 16 German Länder Parliaments.” *Politische
+Vierteljahresschrift*, January.
+<https://doi.org/10.1007/s11615-025-00643-5>.
 
 </div>
 
