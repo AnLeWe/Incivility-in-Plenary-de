@@ -68,22 +68,23 @@ DEFINITIONS = {
 # Datensatz-Definitionen.
 # display_cols: zusätzliche Spalten aus der Eingabe-CSV, die während der Annotation angezeigt werden.
 DATASETS = {
-    "2021": {
-        "label": "2021",
-        "note": "",
-        "input_file": os.path.join(DATA_ROOT, "labelling", "annotations_input.csv"),
+    "2010": {
+        "label": "2010",
+        "note": "v3",
+        "input_file": os.path.join(DATA_ROOT, "labelling", "annotations_input_2010_v3.csv"),
         "display_cols": [],
     },
     "2018": {
         "label": "2018",
-        "note": "Sentiment · Toxizität · Deliberativität · DIKI",
-        "input_file": os.path.join(DATA_ROOT, "labelling", "annotations_input_2018.csv"),
-        "display_cols": [
-            "sentiment_label", "sentiment_score",
-            "toxicity_label", "toxicity_score",
-            "delib_label_raw", "delib_score",
-            "diki_incivility",
-        ],
+        "note": "v3",
+        "input_file": os.path.join(DATA_ROOT, "labelling", "annotations_input_2018_v3.csv"),
+        "display_cols": [],
+    },
+    "2021": {
+        "label": "2021",
+        "note": "v3",
+        "input_file": os.path.join(DATA_ROOT, "labelling", "annotations_input_2021_v3.csv"),
+        "display_cols": [],
     },
 }
 
