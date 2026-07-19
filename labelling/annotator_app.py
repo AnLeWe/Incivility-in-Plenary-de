@@ -57,6 +57,15 @@ def load_input(dataset_key):
         df = pd.read_csv(path, low_memory=False, encoding="utf-8")
     except UnicodeDecodeError:
         df = pd.read_csv(path, low_memory=False, encoding="latin-1")
+    # normalize v3 column names (paragraph_id/protocol_id/protocol_position/speaker_paragraph)
+    # to the v2 names the rest of the app expects, so both schemas work interchangeably
+    v3_to_v2 = {
+        "paragraph_id": "para_id",
+        "protocol_id": "protocol",
+        "protocol_position": "sequence_number",
+        "speaker_paragraph": "speaker_name",
+    }
+    df = df.rename(columns={k: v for k, v in v3_to_v2.items() if k in df.columns and v not in df.columns})
     if "para_id" not in df.columns and "id" in df.columns:
         df = df.rename(columns={"id": "para_id"})
     df["para_id"] = df["para_id"].astype(str)
