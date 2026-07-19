@@ -1,8 +1,11 @@
 beautifulsoup4
 defusedxml
 lxml
+numpy
 openpyxl
 pandas
+protobuf
+python-dotenv
 requests
 streamlit
 tqdm
