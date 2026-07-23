@@ -102,3 +102,26 @@ Once this pilot's quality and Colab throughput are known, compare accuracy/cost 
   Opus 4.8 / Haiku 4.5, not "Claude 4.5"; re-check before committing to a specific model ID).
 
 Not designed yet — brainstorm as its own thing when the pilot is done.
+
+## Future work: Phase 3 distillation to a production encoder
+
+Teacher–student pattern to make full-corpus scoring (16M paragraphs / 4.2M interjection rows)
+cheap enough to actually run, instead of calling a 14B/70B LLM per row:
+
+1. **One-time/batch**: run the chosen teacher LLM (from Phase 2) zero-shot over a larger batch
+   (e.g. 50,000 paragraphs) to generate silver (LLM-predicted, not hand-verified) impoliteness
+   labels — same method as this pilot, larger N.
+2. **Production/streaming**: fine-tune a small encoder-only model on those silver labels; that
+   model does the actual full-corpus scoring cheaply.
+
+Candidate student model: `LSX-UniWue/ModernGBERT_1B` (or the smaller `134M` variant) — a
+German-native ModernBERT architecture from Würzburg. Notably, `schlenker/moderngbert-parl-german-
+stance-detection` already exists on the Hub as a ModernGBERT model fine-tuned on German
+parliamentary stance data, i.e. a proven-fit precedent for this exact domain.
+
+Caveat: quality is bounded by the teacher LLM's zero-shot accuracy — errors/biases in step 1
+propagate into the student's training data. Treat these as silver labels, not gold; spot-check
+the student's predictions against real hand labels once the gold set (currently all-`neutral`)
+has positive examples.
+
+Not designed yet — brainstorm as its own thing once Phase 2 is done.
