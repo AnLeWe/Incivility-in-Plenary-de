@@ -25,6 +25,7 @@ predating `nsc_rule_parser.py`'s cleaned splitting/attribution. This script repl
 with the cleaned, per-segment output now available in `DATA_ROOT/processed/nsc.parquet`.
 
 **Logic**, per dataset:
+
 1. Load the CSV and `nsc.parquet`.
 2. Drop rows where `affiliation == "nsc"`.
 3. From `nsc.parquet`, join in segments matching this dataset's `paragraph_id`s. Exclude
@@ -45,8 +46,10 @@ costs nothing extra — even though the pilot notebook itself only uses 2021 for
 
 **Setup**: Colab notebook. Mount Drive for `DATA_ROOT` (same `IN_COLAB` pattern as
 `explore_pol.ipynb`). Install `transformers accelerate bitsandbytes`. Load
-`Qwen/Qwen2.5-14B-Instruct`, 4-bit quantized via bitsandbytes, `device_map="auto"` — works
-whether Colab hands out a T4 or an A100.
+`Qwen/Qwen3-14B`, 4-bit quantized via bitsandbytes, `device_map="auto"` — works
+whether Colab hands out a T4 or an A100. Qwen3 has a "thinking mode" that must be explicitly
+disabled (`enable_thinking=False` in the chat template) — otherwise it emits chain-of-thought
+before the JSON answer, which breaks the strict-JSON parsing below.
 
 **Data**: load `annotations_input_2021_v3_nsc.csv` only. Draw a random sample of size `N`
 (notebook parameter, default e.g. 300) with a fixed random seed.
