@@ -87,3 +87,18 @@ prompt problem) — explicitly provisional, not real validation.
   the pilot's quality and Colab throughput are known
 - Expanding the gold-label set — noted as a real gap (zero positive examples currently) but
   deferred; may need a targeted annotation pass later to enable real validation
+
+## Future work: Phase 2 model comparison
+
+Once this pilot's quality and Colab throughput are known, compare accuracy/cost across:
+
+- **Best open-weights, high accuracy**: `meta-llama/Llama-3.3-70B-Instruct` — 70B, needs Q4 even
+  on an A100; candidate for best raw quality on European-language / regional-dialect nuance.
+- **Best efficiency/cost**: `Qwen/Qwen3-14B` — the model this pilot already uses (note: the
+  model's real Hub ID has no `-Instruct` suffix; Qwen3 ships instruction-tuned under the plain
+  name, unlike Qwen2.5).
+- **Best proprietary**: whatever the current best Claude model is at the time this phase runs
+  (Anthropic's lineup moves — as of this pilot's design date the current models are Sonnet 5 /
+  Opus 4.8 / Haiku 4.5, not "Claude 4.5"; re-check before committing to a specific model ID).
+
+Not designed yet — brainstorm as its own thing when the pilot is done.
