@@ -40,6 +40,9 @@ def parse_response(raw: str) -> dict:
     except (json.JSONDecodeError, TypeError):
         return {"impolite": None, "reason": None, "raw_output": raw}
 
+    if not isinstance(parsed, dict):
+        return {"impolite": None, "reason": None, "raw_output": raw}
+
     impolite = parsed.get("impolite")
     if not isinstance(impolite, bool):
         return {"impolite": None, "reason": None, "raw_output": raw}
