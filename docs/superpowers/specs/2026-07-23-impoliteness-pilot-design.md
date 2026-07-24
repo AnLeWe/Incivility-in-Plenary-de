@@ -33,7 +33,13 @@ with the cleaned, per-segment output now available in `DATA_ROOT/processed/nsc.p
    filter already used elsewhere in the pipeline (see `CLAUDE.md`). A single raw row can expand
    into multiple segment rows (multi-speaker interjections).
 4. Use `content_text` (cleaned) as the new `content` field for these rows.
-5. Concatenate with the untouched non-`nsc` rows (regular speech — unaffected, so none of the
+5. **Mint a unique `paragraph_id` for split segments**: `annotator_app.py` treats `para_id` as a
+   unique key (`drop_duplicates(subset="para_id")`, a `coded_ids` set used to skip already-
+   annotated rows). A multi-speaker interjection row expands into several segment rows that would
+   otherwise all share the same original `paragraph_id` — annotating one would silently mark all
+   its siblings as already-coded. Fix: keep `paragraph_id` unchanged when `n_segments == 1`; use
+   `f"{paragraph_id}_s{segment_idx}"` when `n_segments > 1`.
+6. Concatenate with the untouched non-`nsc` rows (regular speech — unaffected, so none of the
    existing 36 gold labels break).
 
 **Output**: new files, not overwrites — `annotations_input_{2010,2018,2021}_v3_nsc.csv` in the
