@@ -21,6 +21,10 @@ just wires that library together with sampling, the Ollama call loop, and a revi
 - Qwen3's thinking mode must be disabled (`think=False` in the `ollama.chat` call) or the raw
   response contains chain-of-thought text before the JSON and breaks parsing.
 - Every generation call must be deterministic: `temperature: 0` and a fixed `seed` in `options`.
+- Every `ollama.chat` call passes `format="json"` — this constrains decoding to valid JSON at the
+  model level (verified present in the installed `ollama` 0.6.2 package's `chat()` signature),
+  not just a prompt instruction hoping for compliance, which is why `parse_response`'s
+  "unparseable" branch (Task 1) should be rare in practice.
 - One paragraph per `ollama.chat` call — no batching multiple paragraphs into one prompt.
 - Binary output only: `{"impolite": true/false, "reason": "<one sentence>"}` — no 3-class scheme.
 - Sample from `merged` (built in the notebook's existing data-prep section — all 16 states, each
@@ -271,6 +275,7 @@ _test_response = ollama.chat(
     model=MODEL,
     messages=build_prompt("Das ist doch eine Frechheit, Sie Lügner!"),
     think=False,
+    format="json",
     options={"temperature": 0, "seed": SEED},
 )
 print(_test_response["message"]["content"])
@@ -312,6 +317,7 @@ for i, row in sample.iterrows():
         model=MODEL,
         messages=build_prompt(row["text_to_classify"]),
         think=False,
+        format="json",
         options={"temperature": 0, "seed": SEED},
     )
     parsed = parse_response(response["message"]["content"])
