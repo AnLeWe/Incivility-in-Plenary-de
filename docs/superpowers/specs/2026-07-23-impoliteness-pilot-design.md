@@ -1,6 +1,6 @@
 # Impoliteness pilot — design
 
-Date: 2026-07-23
+Date: 2026-07-23. Revised 2026-07-24 (Part 1 rewritten to match already-built work).
 
 ## Goal
 
@@ -13,42 +13,54 @@ validation is possible yet.
 
 Scope is deliberately narrow: no fine-tuning (not enough gold data), no multi-dimension
 classification (politeness only, not moral/justificatory civility), binary output
-(impolite / not), 2021 data only for this first pass.
+(impolite / not).
 
-## Part 1: refresh script
+## Part 1: data preparation (already built, 2026-07-24)
 
-New file: `labelling/refresh_annotation_inputs.py`
+This part was built directly by Anna in parallel with this spec, not planned here — documented
+for completeness so the rest of the spec makes sense. Supersedes the original Part 1 plan (a
+`labelling/refresh_annotation_inputs.py` script targeting the annotator's CSV pool) with a more
+general and better-motivated approach: sampling straight from the master paragraphs table within
+a research-relevant event window, instead of the fixed-year annotator CSVs.
 
-The existing annotation-input pools (`DATA_ROOT/labelling/annotations_input_{2010,2018,2021}_v3.csv`,
-~600k rows each, all 16 states) still contain raw, unsplit `affiliation == "nsc"` rows —
-predating `nsc_rule_parser.py`'s cleaned splitting/attribution. This script replaces those rows
-with the cleaned, per-segment output now available in `DATA_ROOT/processed/nsc.parquet`.
+**`measurement/nsc_llm_explode.py`** (new script): explodes `nsc.parquet` into one row per
+`(nsc_type, party_canonical)` atomic unit — the shape an LLM text classifier needs, since a single
+parsed segment can carry multiple pipe-joined types (`"Heiterkeit|Beifall"`) and/or multiple
+pipe-joined parties (`"CDU|SPD"`). Multi-type and multi-party rows are exploded independently in
+sequence, which produces their cross-product for the rare (~0.45%) segments with both. Rows with
+neither multiplicity (the large majority) pass through unchanged. Non-interjection `nsc_type`s
+(`glocke`, `Prozedural`, `mislabelled`, `noise`, `garbled`) are excluded, matching the filter used
+elsewhere in the pipeline. Output: `DATA_ROOT/processed/nsc_llm.parquet` (6,176,081 rows from
+4,112,535 distinct source paragraphs, as of the 2026-07-24 run).
 
-**Logic**, per dataset:
+**`measurement/impoliteness_pilot.ipynb`, data-prep section** (already written and executed):
 
-1. Load the CSV and `nsc.parquet`.
-2. Drop rows where `affiliation == "nsc"`.
-3. From `nsc.parquet`, join in segments matching this dataset's `paragraph_id`s. Exclude
-   non-utterance `nsc_type`s (`glocke`, `Prozedural`, `mislabelled`, `noise`, `garbled`) — same
-   filter already used elsewhere in the pipeline (see `CLAUDE.md`). A single raw row can expand
-   into multiple segment rows (multi-speaker interjections).
-4. Use `content_text` (cleaned) as the new `content` field for these rows.
-5. **Mint a unique `paragraph_id` for split segments**: `annotator_app.py` treats `para_id` as a
-   unique key (`drop_duplicates(subset="para_id")`, a `coded_ids` set used to skip already-
-   annotated rows). A multi-speaker interjection row expands into several segment rows that would
-   otherwise all share the same original `paragraph_id` — annotating one would silently mark all
-   its siblings as already-coded. Fix: keep `paragraph_id` unchanged when `n_segments == 1`; use
-   `f"{paragraph_id}_s{segment_idx}"` when `n_segments > 1`.
-6. Concatenate with the untouched non-`nsc` rows (regular speech — unaffected, so none of the
-   existing 36 gold labels break).
+1. Load `stateparl_v3_paragraphs.parquet` (16,078,467 rows, all 16 states) and `nsc_llm.parquet`.
+2. Derive each state's AfD entry date from the corpus itself: the first legislative period with
+   any `affiliation == "afd"` row, using that period's own constitutive-session date (first
+   sitting overall) — the same corpus-derived method already validated in
+   `analysis/nsc_analysis.ipynb`'s `AFD_PRESENCE` derivation. Produces `AFD_ENTRY: dict[state,
+   Timestamp]`, one date per state (all 16 resolved).
+3. Filter `paragraphs` to a **±1 year window around each state's own AfD entry date** — a
+   per-state event window, not a single shared calendar year. Result: 1,223,597 of 16,078,467
+   paragraphs (7.6%), all 16 states represented.
+4. Left-join `nsc_llm` onto the windowed paragraphs on `paragraph_id` (dropping `nsc_llm` columns
+   that duplicate `paragraphs` columns first: `protocol_id`, `speech_id`, `state`, `period`,
+   `nth`, `date`, `protocol_position`, `raw_row`). Non-`nsc` paragraphs get exactly one output row
+   (all `nsc_llm` columns `NaN`); `nsc`-affiliated paragraphs fan out to one row per matching
+   `nsc_llm` classification unit. Result: `merged`, 1,399,244 rows.
 
-**Output**: new files, not overwrites — `annotations_input_{2010,2018,2021}_v3_nsc.csv` in the
-same `DATA_ROOT/labelling/` directory. Keeps the raw pool around for reference.
+This is the actual current state — **verify it's still current by checking the notebook and
+`DATA_ROOT/processed/nsc_llm.parquet` directly before building on it**, since it was built outside
+this spec's tracked history.
 
-Runs once per period; processes all 3 periods (2010/2018/2021) since looping over all three
-costs nothing extra — even though the pilot notebook itself only uses 2021 for now.
+## Part 2: `measurement/impoliteness_pilot.ipynb`, LLM-scoring section (to build)
 
-## Part 2: `measurement/impoliteness_pilot.ipynb`
+**Data**: sample from `merged` (Part 1's output) — all 16 states, each within its own AfD-entry
+±1yr window — rather than a single fixed year. Draw a random sample of size `N` (notebook
+parameter, default e.g. 300) with a fixed random seed. For rows where `nsc_llm` columns are
+present (interjections), classify `content_text`; for rows where they're `NaN` (regular speech),
+classify `content`.
 
 **Setup**: local Mac (32GB unified memory), via Ollama — no Colab needed. `DATA_ROOT` read from
 `.env` (same local-fallback path already in the notebook's setup cell). Run `ollama pull
@@ -60,9 +72,6 @@ real risk of memory pressure/swapping. Fallback if that happens: `ollama pull qw
 a "thinking mode" that must be explicitly disabled (pass `think: false` in the Ollama request, or
 prefix the prompt with `/no_think`) — otherwise it emits chain-of-thought before the JSON answer,
 which breaks the strict-JSON parsing below.
-
-**Data**: load `annotations_input_2021_v3_nsc.csv` only. Draw a random sample of size `N`
-(notebook parameter, default e.g. 300) with a fixed random seed.
 
 **Determinism**: everything seeded — the sampling seed, and generation itself (`temperature: 0`
 and a fixed `seed` in the Ollama request options) so re-running the notebook on the same input
@@ -78,8 +87,11 @@ collapses `neutral`+`höflich` into "not impolite"). Model must return strict JS
 **Run loop**: iterate the sample, call the model, parse JSON. On unparseable output, flag the row
 rather than crashing the run (e.g. `impolite = None`, raw output kept for inspection).
 
-**Output**: `para_id, period, state, content, impolite, reason, model_name` saved to
-`DATA_ROOT/measurement/impoliteness_pilot_predictions.csv`.
+**Output**: `paragraph_id, state, period, date, affiliation, content, impolite, reason,
+model_name` saved to `DATA_ROOT/measurement/impoliteness_pilot_predictions.csv`.
+`paragraph_id` here is `merged`'s own column — unlike the abandoned refresh-script plan, it's
+never renamed/suffixed, so it lines up directly with `labelling/annotations_output.csv`'s
+`para_id` for the gold-label cross-check below with no ID translation needed.
 
 **Review section**: print predicted-impolite examples next to their source text for manual
 sanity-checking; report predicted impoliteness rate overall and by state. Cross-check the 36 gold
@@ -90,17 +102,15 @@ prompt problem) — explicitly provisional, not real validation.
 
 - Fine-tuning any model
 - Multi-dimension classification (moral/justificatory civility)
-- 2010/2018 data in the pilot notebook itself (refresh script prepares them, notebook doesn't use
-  them yet)
 - Batched/multi-paragraph prompting
 - Full-corpus scale run and its cost/throughput trade-offs (API vs. local model) — revisit once
-  the pilot's quality and Colab throughput are known
+  the pilot's quality is known (see Phase 3 below)
 - Expanding the gold-label set — noted as a real gap (zero positive examples currently) but
   deferred; may need a targeted annotation pass later to enable real validation
 
 ## Future work: Phase 2 model comparison
 
-Once this pilot's quality and Colab throughput are known, compare accuracy/cost across:
+Once this pilot's quality and local Mac throughput are known, compare accuracy/cost across:
 
 - **Best open-weights, high accuracy**: `meta-llama/Llama-3.3-70B-Instruct` — 70B, needs Q4 even
   on an A100; candidate for best raw quality on European-language / regional-dialect nuance.
