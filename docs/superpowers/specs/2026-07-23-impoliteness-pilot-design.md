@@ -44,19 +44,23 @@ costs nothing extra — even though the pilot notebook itself only uses 2021 for
 
 ## Part 2: `measurement/impoliteness_pilot.ipynb`
 
-**Setup**: Colab notebook. Mount Drive for `DATA_ROOT` (same `IN_COLAB` pattern as
-`explore_pol.ipynb`). Install `transformers accelerate bitsandbytes`. Load
-`Qwen/Qwen3-14B`, 4-bit quantized via bitsandbytes, `device_map="auto"` — works
-whether Colab hands out a T4 or an A100. Qwen3 has a "thinking mode" that must be explicitly
-disabled (`enable_thinking=False` in the chat template) — otherwise it emits chain-of-thought
-before the JSON answer, which breaks the strict-JSON parsing below.
+**Setup**: local Mac (32GB unified memory), via Ollama — no Colab needed. `DATA_ROOT` read from
+`.env` (same local-fallback path already in the notebook's setup cell). Run `ollama pull
+qwen3:14b-fp16` and call it via the `ollama` Python client (`ollama.chat(...)`), rather than
+`transformers`/`bitsandbytes` (bitsandbytes 4-bit is CUDA-only and doesn't work on Apple Silicon
+anyway). fp16 Qwen3-14B is ~30GB of weights alone — tight against 32GB shared with macOS itself,
+real risk of memory pressure/swapping. Fallback if that happens: `ollama pull qwen3:14b-q8_0`
+(~15GB, still much better quality than Q4) — a one-line model-tag swap, no code change. Qwen3 has
+a "thinking mode" that must be explicitly disabled (pass `think: false` in the Ollama request, or
+prefix the prompt with `/no_think`) — otherwise it emits chain-of-thought before the JSON answer,
+which breaks the strict-JSON parsing below.
 
 **Data**: load `annotations_input_2021_v3_nsc.csv` only. Draw a random sample of size `N`
 (notebook parameter, default e.g. 300) with a fixed random seed.
 
-**Determinism**: everything seeded — the sampling seed, and generation itself (greedy decoding /
-`do_sample=False`, plus `torch`/`transformers` seed set) so re-running the notebook on the same
-input reproduces the same predictions.
+**Determinism**: everything seeded — the sampling seed, and generation itself (`temperature: 0`
+and a fixed `seed` in the Ollama request options) so re-running the notebook on the same input
+reproduces the same predictions.
 
 **Prompt**: one paragraph per call (not batched — batching multiple paragraphs into one JSON-list
 prompt risks the model dropping/merging items mid-batch, which would muddy quality assessment for
