@@ -50,3 +50,20 @@ def test_parse_response_non_bool_impolite_is_flagged():
     result = parse_response(raw)
 
     assert result["impolite"] is None
+
+
+def test_parse_response_non_dict_json_is_flagged():
+    """Test that valid JSON that isn't a dict (e.g. integers, nulls, arrays, bools, strings) is flagged, not raised."""
+    test_cases = [
+        "42",                           # integer
+        "null",                         # null
+        "[1, 2, 3]",                   # array
+        "true",                        # boolean
+        '"just a string"',             # string
+    ]
+
+    for raw in test_cases:
+        result = parse_response(raw)
+        assert result["impolite"] is None, f"Failed for raw={raw}"
+        assert result["reason"] is None, f"Failed for raw={raw}"
+        assert result["raw_output"] == raw, f"Failed for raw={raw}"
