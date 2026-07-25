@@ -2,6 +2,7 @@ beautifulsoup4
 defusedxml
 lxml
 numpy
+ollama
 openpyxl
 pandas
 protobuf
