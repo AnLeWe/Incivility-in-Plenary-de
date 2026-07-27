@@ -63,15 +63,27 @@ present (interjections), classify `content_text`; for rows where they're `NaN` (
 classify `content`.
 
 **Setup**: local Mac (32GB unified memory), via Ollama — no Colab needed. `DATA_ROOT` read from
-`.env` (same local-fallback path already in the notebook's setup cell). Run `ollama pull
-qwen3:14b-fp16` and call it via the `ollama` Python client (`ollama.chat(...)`), rather than
-`transformers`/`bitsandbytes` (bitsandbytes 4-bit is CUDA-only and doesn't work on Apple Silicon
-anyway). fp16 Qwen3-14B is ~30GB of weights alone — tight against 32GB shared with macOS itself,
-real risk of memory pressure/swapping. Fallback if that happens: `ollama pull qwen3:14b-q8_0`
-(~15GB, still much better quality than Q4) — a one-line model-tag swap, no code change. Qwen3 has
-a "thinking mode" that must be explicitly disabled (pass `think: false` in the Ollama request, or
-prefix the prompt with `/no_think`) — otherwise it emits chain-of-thought before the JSON answer,
-which breaks the strict-JSON parsing below.
+`.env` (same local-fallback path already in the notebook's setup cell). Call the model via the
+`ollama` Python client (`ollama.chat(...)`), rather than `transformers`/`bitsandbytes`
+(bitsandbytes 4-bit is CUDA-only and doesn't work on Apple Silicon anyway). Qwen3 has a "thinking
+mode" that must be explicitly disabled (`think=False` in the `ollama.chat` call) — otherwise it
+emits chain-of-thought before the JSON answer, which breaks the strict-JSON parsing below.
+
+**Model tag — downgraded twice in practice, both times for real observed reasons, not
+speculative caution:**
+
+1. `qwen3:14b-fp16` (~30GB) — original plan. Never pulled: the actual network connection turned
+   out too slow (~3 MB/s, 2+ hour ETA), so this was abandoned before completion in favor of (2).
+2. `qwen3:14b-q8_0` (~15GB) — used successfully for Task 2 (model pull, sampling, smoke test all
+   verified working). Failed in Task 3: reloading this model mid-run (Ollama unloads an idle
+   model between cells, then reloads it) crashed the Jupyter kernel (`nbclient.exceptions.
+   DeadKernelError`) under real, measured memory pressure — at the failure timestamp, Ollama's own
+   server log showed ~5-7GB free RAM and 0 free swap; independently confirmed days later via
+   `vm_stat`/`sysctl vm.swapusage` still showing ~64-77MB free RAM and ~1.5GB free swap, driven by
+   many unrelated resident apps (browser, IDE, antivirus agent, etc.), not by the notebook itself.
+3. `qwen3:14b-q4_K_M` (exact Hub tag confirmed via `ollama.com/library/qwen3/tags`) — current
+   choice, ~7-8GB, chosen specifically to survive the same chronic memory pressure rather than
+   requiring the user to close other applications first.
 
 **Determinism**: everything seeded — the sampling seed, and generation itself (`temperature: 0`
 and a fixed `seed` in the Ollama request options) so re-running the notebook on the same input
