@@ -32,3 +32,6 @@ labelling/.annotator_positions.json
 # OS
 .DS_Store
 ~$*.xlsx
+
+# Local progress/TODO tracking - not shared
+PROGRESS.md
