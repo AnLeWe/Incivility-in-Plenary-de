@@ -13,9 +13,11 @@ and computational text analysis.
 
 ``` text
 ├── src/                    Python notebooks for scraping and exploration
+├── preprocessing/          ETL: parses raw nsc (interjection) rows into clean, structured dataframes
 ├── labelling/              Streamlit-based manual annotation tool + transformer auto-labelling
-├── measurement/            Turns labels into the constructed variables/indices used in analysis
+├── measurement/            LLM-based impoliteness classifier (reads preprocessing/'s output)
 ├── analysis/               R scripts and Quarto documents for statistical analysis
+├── utils/                  Shared project-wide constants (e.g. the color scheme)
 ├── codebook/               Annotation codebooks and dataset documentation
 ├── references/             Project bibliography (references.bib)
 ├── figures/                Output plots and tables

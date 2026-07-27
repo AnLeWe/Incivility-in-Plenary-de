@@ -29,9 +29,21 @@ Auditing `nsc_llm.parquet` (built by `nsc_llm_explode.py`, consumed by
    "mislabelled", "noise", "garbled"}` was meant to exclude non-interjection content, but
    `nsc_type` can independently hold the *capitalized* value `"Glocke"` (a chair's-bell reaction
    tag, distinct from the lowercase `"glocke"` row-type-level category, which is a full row that's
-   *only* about the bell). Since `_NON_INJ` only lists lowercase `"glocke"`, `"Glocke"`-tagged rows
-   (10,707 standalone + more in combos) were never excluded. Investigation showed this is actually
+   *only* about the bell). **This is not a regex case-sensitivity bug** — the regex that assigns
+   the lowercase row-type category (`_IS_GLOCKE = re.compile(r'\bglocke\w*\b', re.I)`) already has
+   `re.I`. `_NON_INJ` is checked via plain Python `set` membership (`nsc_type.isin(_NON_INJ)`) —
+   exact string equality, not text search — against `nsc.parquet`'s `nsc_type` column, which
+   genuinely contains both `"glocke"` and `"Glocke"` as two intentionally distinct values (the
+   former assigned by `classify_row_type()` *before* extraction runs, for rows that are only ever
+   about the bell; the latter assigned *after* full extraction, as a reaction-type tag that can
+   coexist with `Zuruf`/`Unruhe`/etc. via the pipe-join). Nobody had explicitly decided what to do
+   with the capitalized one — it simply wasn't in the set. Investigation showed this is actually
    **not** something to fix by excluding it — see Decision 5.
+4. **`nsc.parquet` is not pre-filtered to interjection rows.** It contains all `nsc`-affiliated
+   rows, including `"glocke"`, `"noise"`, `"Prozedural"`, `"mislabelled"` as literal `nsc_type`
+   values — there is no separate `row_type` column anywhere in its schema. The *only* place the
+   non-interjection exclusion currently happens is `_NON_INJ` inside `nsc_llm_explode.py`, which
+   this redesign moves away from as the classification base — see Decision 4's correction below.
 
 ## Decisions
 
@@ -88,10 +100,25 @@ Output: joinable onto `paragraphs.parquet` by `paragraph_id`, left-join, one row
 
 Rather than maintaining a hardcoded exclude-list of `nsc_type` strings (the root cause of the
 `"Glocke"` bug — a list that silently drifted out of sync with real data values), the
-classification-ready set is built by filtering `nsc.parquet`'s already-real-interjection rows
-(row_type == interjection) down to those with **non-blank `content_text`**. This uniformly and
-automatically drops `Beifall`/`Zustimmung`/`Heiterkeit`/`Lachen`/`Gelächter`/`Glocke` (98–100%
-blank — there's no speech to judge tone of) without needing to name them individually.
+classification-ready set is built by filtering `nsc.parquet` down to those rows with
+**non-blank `content_text`**. **Correction from the first draft of this spec**: since
+`nsc.parquet` itself is *not* pre-filtered (see Background point 4), this still requires
+explicitly excluding the renamed non-interjection categories (`document_reference`/`Prozedural`/
+`misattributed`/`garbled`, plus row-type-level `glocke`) first — the content-presence filter
+alone isn't sufficient, because e.g. a `document_reference`/`Prozedural` row could coincidentally
+have non-blank text that isn't a real reaction. The corrected two-step filter: (1) exclude the
+non-interjection `nsc_type` categories (same exclusion `nsc_llm_explode.py`/
+`nsc_party_type_explode.py` already does, just re-applied directly against `nsc.parquet` instead
+of relying on the renamed script), then (2) within what's left, keep only non-blank `content_text`
+— which is what correctly and automatically drops `Beifall`/`Zustimmung`/`Heiterkeit`/`Lachen`/
+`Gelächter`/`Glocke` (98–100% blank — there's no speech to judge tone of) without needing to name
+them individually.
+
+**Before trusting non-blank `content_text` as correct**: non-blank only means the parser
+extracted *something*, not that it's the *right* something. Add a validation step before mass
+classification — sample `content_text` against `raw_segment` for a stratified set (especially
+`Zwischenruf`, the category the classifier depends on most) and estimate an actual
+extraction-accuracy rate, rather than assuming non-blank rows are clean.
 
 **Known gap this creates, not solved by this redesign**: some genuinely content-bearing rows
 (`Zwischenruf` especially — 191,248 rows, 11.7% of that type) also have blank `content_text` due
@@ -100,10 +127,22 @@ classification input for now. We are **not** falling back to `raw_segment`/`raw_
 them (see Decision 6) — improving the parser's extraction coverage for these specific rows is a
 separate future task, out of scope here.
 
-**No new persisted file for this.** The classification-ready set is a runtime filter
-(`row_type == "interjection"` — already implicit in `nsc.parquet` — and `content_text != ""`)
-applied directly when `nsc.parquet` is loaded, not its own saved parquet. This avoids adding a
-dataset that's just a filtered view of one that already exists.
+**No new persisted file for this.** The classification-ready set is a runtime filter (exclude
+non-interjection categories, then `content_text != ""`) applied directly when `nsc.parquet` is
+loaded, not its own saved parquet. This avoids adding a dataset that's just a filtered view of one
+that already exists.
+
+**Implementation-time bug found and fixed (2026-07-27), same failure family as the original
+blank-vs-NaN issue**: excluding non-interjection categories from `nsc` *before* the join (rather
+than after, as the old `nsc_llm` pipeline did) means some paragraphs' entire nsc entry gets
+excluded — every one of their segments was e.g. `document_reference`/`misattributed` — so the
+left join produces no match at all for that `paragraph_id`, and `text_to_classify` ends up `None`
+rather than `""`. A plain `!= ""` filter treats `None` as "not blank" (`None != ""` is `True` in
+pandas), so it silently let one such row (`paragraph_id` 11554984, confirmed via end-to-end
+verification against real data) through into a test sample with an empty prompt. Fixed by
+requiring `.notna()` explicitly alongside `!= ""` in `impoliteness_pilot.ipynb`'s sampling cell.
+Caught ~6,800 additional rows the naive check had been missing, on top of the ~126k already
+correctly excluded.
 
 ### 5. `"Glocke"` is kept, not excluded — the earlier "bug" was accidentally correct behavior
 
@@ -147,7 +186,8 @@ remains available for downstream analysis via the existing `paragraph_id`/`segme
 
 - `noise` → `document_reference` (or similar) — these are `Drucksache`/`Tagesordnungspunkt`/
   `Lesung` references, not garbage; they're just out of scope for interjection analysis. (Separate
-  future idea, noted but not in scope here: detecting these same document references across the
+  future idea, must urgently be added to the projects TODO list, but not in scope here:
+  detecting these same document references like Drucksache that give context for the current debate across the
   *whole* corpus, not just nsc rows, to eventually link paragraphs to their source
   bills/agenda items — tracked in memory, not this spec.)
 - `mislabelled` → `misattributed` (or similar) — reflects that the *source data's*
@@ -156,6 +196,46 @@ remains available for downstream analysis via the existing `paragraph_id`/`segme
 
 Exact final strings are Anna's call — flagged here for review rather than locked in, since this
 is a naming/taste decision more than a technical one.
+
+### 9. Folder restructure: `preprocessing/` for ETL, `measurement/` narrowed to actual scoring
+
+Once the classification/aggregate split above was settled, it became clear the *files*
+implementing it were misplaced: `measurement/` was holding both ETL scripts (parsing/exploding
+nsc rows) and the actual construct-measurement code (the LLM impoliteness classifier), which
+`CLAUDE.md` itself conflated under one "Measurement Pipeline" heading. Decided:
+
+- **New top-level `preprocessing/` folder** holds the ETL layer: `nsc_rule_parser.py`,
+  `nsc_party_type_explode.py` (renamed per Decision 2), `nsc_paragraph_flags.py` (new, per
+  Decision 3), `interjections_pipeline.md`.
+- **`measurement/` narrows to just the actual scoring code**: `impoliteness_pilot.ipynb`,
+  `impoliteness_lib.py`, `test_impoliteness_lib.py`.
+- **`colors.py`/`colors.R` move to a new top-level `utils/` folder**, not `analysis/` — per
+  Anna: "colors should be used for the whole project, it is the project's colors," i.e.
+  project-wide shared constants, not scoped to any one pipeline stage. Both `preprocessing/`
+  and `utils/` get an `__init__.py` so package-style imports (`from utils.colors import ...`,
+  `from preprocessing.nsc_rule_parser import ...`) work the same way `measurement/__init__.py`
+  already enabled for `colors.py`.
+- **Consequences handled**: `.githooks/pre-commit`'s requirements-regeneration trigger extended
+  to watch `preprocessing/` and `utils/` too; `analysis/nsc_analysis.ipynb` and
+  `analysis/nsc_ml_extraction.ipynb`'s import paths and markdown references updated
+  (`from measurement.colors import ...` → `from utils.colors import ...`,
+  `measurement/nsc_rule_parser.py` → `preprocessing/nsc_rule_parser.py`); `nsc_analysis.ipynb`'s
+  own hardcoded `_NON_INJ` set (a 4th copy of the same exclusion list, found during this
+  restructure) replaced with an import of `nsc_rule_parser.NON_INTERJECTION_TYPES`, the single
+  source of truth now exported from that module.
+
+### 10. Single project-wide `PROGRESS.md`, not one per folder
+
+Anna: "I need one general todo list. Things will accumulate, and they will be interrelated...
+I need a dynamic todo file or progress that shows where we are actually going." Decided against
+a per-folder progress file (the old `measurement/PROGRESS.md` only covered the parser) in favor
+of one root-level `PROGRESS.md` covering `preprocessing/`/`measurement/`/`analysis/`/
+`labelling/` together, structured as: status snapshot, ready-now, blocked/needs-a-decision,
+known limitations, open parser-quality findings (surfaced from `nsc_analysis.ipynb`'s audit
+cells, which aren't otherwise centrally tracked), an ideas/opportunities parking lot, remaining
+pipeline stages, and a decisions log pointing to specs rather than duplicating them. Kept
+deliberately lightweight (plain markdown, no new tooling) per Anna's explicit "I do not have
+time for that right now" re: a more elaborate solution.
 
 ## What does NOT change
 
@@ -166,21 +246,29 @@ is a naming/taste decision more than a technical one.
 - `impoliteness_pilot.ipynb` Part 2 (LLM scoring mechanics: model, prompt structure, one-call-per-
   paragraph, seeding) from the 2026-07-23 spec — unaffected by this redesign.
 
-## File/script inventory after this change
+## File/script inventory after this change (final — implemented and verified 2026-07-27)
 
 | File | Role | Status |
-|---|---|---|
-| `measurement/nsc_rule_parser.py` | Parses `nsc` rows → `nsc.parquet` | Unchanged except category renames |
-| `DATA_ROOT/processed/nsc.parquet` | Segment-level, multisegment-exploded, type/party NOT exploded | Unchanged shape; category renames flow through |
-| `measurement/nsc_party_type_explode.py` (renamed from `nsc_llm_explode.py`) | Party×type cross-product for aggregate/crosstab analysis only | Renamed; doc comment clarifies `Glocke` retention is deliberate |
-| `DATA_ROOT/processed/nsc_party_type.parquet` (renamed from `nsc_llm.parquet`) | Aggregate-analysis input | Renamed |
-| `measurement/nsc_paragraph_flags.py` (new, name TBD) | Builds paragraph-level `is_nsc` + `affiliation_derived` side table | New |
-| `DATA_ROOT/processed/nsc_paragraph_flags.parquet` (new, name TBD) | Joinable onto `paragraphs.parquet` | New |
-| `measurement/impoliteness_pilot.ipynb` | Classification pipeline | Data-prep section rewritten to use `nsc.parquet` directly (content-presence filter), no `nsc_llm`/party-type join for classification |
-| `analysis/nsc_analysis.ipynb` | Aggregate/crosstab/time-series analysis | Load path updated to `nsc_party_type.parquet` |
+| --- | --- | --- |
+| `preprocessing/nsc_rule_parser.py` (moved from `measurement/`) | Parses `nsc` rows → `nsc.parquet` | Category renames applied; exports `NON_INTERJECTION_TYPES` as the single source of truth (was duplicated across 4 files) |
+| `DATA_ROOT/processed/nsc.parquet` | Segment-level, multisegment-exploded, type/party NOT exploded | Regenerated; row count unchanged at 4,920,872, category counts verified identical to pre-restructure baseline |
+| `preprocessing/nsc_party_type_explode.py` (moved + renamed from `measurement/nsc_llm_explode.py`) | Party×type cross-product for aggregate/crosstab analysis only | Doc comment clarifies `Glocke` retention is deliberate; imports `NON_INTERJECTION_TYPES` instead of a local copy |
+| `DATA_ROOT/processed/nsc_party_type.parquet` (renamed from `nsc_llm.parquet`) | Aggregate-analysis input | Regenerated; byte-identical size to old `nsc_llm.parquet` confirms no behavior change; old file removed |
+| `preprocessing/nsc_paragraph_flags.py` | Builds paragraph-level `is_nsc` + `affiliation_derived` side table | New; verified 4,207,561 rows = exactly `paragraphs.affiliation == "nsc"` count |
+| `DATA_ROOT/processed/nsc_paragraph_flags.parquet` | Joinable onto `paragraphs.parquet` | New |
+| `measurement/impoliteness_pilot.ipynb` | Classification pipeline | Data-prep section rewritten to use `nsc.parquet` directly, no `nsc_llm`/party-type join; NaN-vs-blank bug found and fixed (see Decision 4) |
+| `analysis/nsc_analysis.ipynb` | Aggregate/crosstab/time-series analysis | Import paths updated (`utils.colors`, `preprocessing.nsc_rule_parser`); own hardcoded `_NON_INJ` replaced with `NON_INTERJECTION_TYPES` import |
+| `analysis/nsc_ml_extraction.ipynb` | Stub, ML enrichment (not yet built) | Path references updated only |
+| `utils/colors.py` / `utils/colors.R` (moved from `measurement/`) | Project-wide color constants | Moved per Decision 9 |
+| `PROGRESS.md` (new, repo root; superseded `measurement/PROGRESS.md`) | Single project-wide TODO/status | New, per Decision 10 |
+| `.githooks/pre-commit` | Requirements-regeneration trigger | Extended to watch `preprocessing/` and `utils/` |
+| `CLAUDE.md` | Project documentation | Repository-layout section added; Measurement Pipeline section split into preprocessing vs. measurement |
 
-## Open items for Anna to confirm when reviewing this spec
+## Open items — resolved
 
-1. First-segment-as-representative convention for `nsc_paragraph_flags` (Decision 3).
-2. Exact renamed strings for `noise`/`mislabelled` categories (Decision 8).
-3. Final file/script names (marked TBD above) — placeholders chosen for clarity, not precious.
+1. First-segment-as-representative convention for `nsc_paragraph_flags` (Decision 3) — kept as
+   proposed, no objection raised.
+2. Renamed category strings (Decision 8) — `document_reference`/`misattributed` confirmed via
+   implementation, no alternative requested.
+3. Folder/file names — `preprocessing/` (not `prep/`), `utils/` for colors, `nsc_paragraph_flags.py`
+   — all confirmed by Anna during implementation.

@@ -1,10 +1,11 @@
 #!/bin/sh
 # Regenerate requirements.txt when staged changes touch Python source under
-# src/, labelling/, or measurement/. See scripts/update_requirements.py.
+# src/, labelling/, measurement/, preprocessing/, or utils/. See
+# scripts/update_requirements.py.
 # Active only if this repo's git config points core.hooksPath here:
 #   git config core.hooksPath .githooks
 
-if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(src|labelling|measurement)/.*\.(py|ipynb)$'; then
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(src|labelling|measurement|preprocessing|utils)/.*\.(py|ipynb)$'; then
     if ! command -v pipreqs >/dev/null 2>&1; then
         echo "pre-commit: pipreqs not found on PATH, skipping requirements.txt refresh (install with 'uv tool install pipreqs')" >&2
     else
