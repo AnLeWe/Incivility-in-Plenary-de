@@ -18,11 +18,23 @@ Output: DATA_ROOT/processed/afd_entry_dates.csv
   Columns: state, entry_date (16 rows, one per state).
 
 Usage:
-    norm_env/bin/python measurement/afd_entry_dates.py
+    norm_env/bin/python src/afd_entry_dates.py
 """
+import os
+from pathlib import Path
+
 import pandas as pd
 
-from nsc_rule_parser import get_data_root
+
+def get_data_root() -> Path:
+    data_root = os.environ.get("DATA_ROOT")
+    if not data_root:
+        from dotenv import load_dotenv, find_dotenv
+        load_dotenv(find_dotenv())
+        data_root = os.environ.get("DATA_ROOT")
+    if not data_root:
+        raise SystemExit("DATA_ROOT not set. Copy .env.example to .env and set DATA_ROOT.")
+    return Path(data_root)
 
 
 def derive_afd_entry_dates(paragraphs: pd.DataFrame) -> pd.DataFrame:
