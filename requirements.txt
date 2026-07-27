@@ -5,6 +5,7 @@ numpy
 ollama
 openpyxl
 pandas
+preprocessing
 protobuf
 python-dotenv
 requests
