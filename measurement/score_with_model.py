@@ -35,7 +35,9 @@ explanation text is part of the system prompt itself, not just the per-call cont
 import argparse
 import os
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from pathlib import Path
 
@@ -184,54 +186,75 @@ def run_full_state(args, data_root: str) -> None:
     todo = rows[~is_done]
     print(f"{len(todo):,} rows remaining this run")
 
-    write_header = not out_path.exists()
+    columns = ["paragraph_id", "segment_idx", "state", "date", "affiliation", "content",
+               "impolite", "reason", "model_name", "variant"]
+    if not out_path.exists():
+        pd.DataFrame(columns=columns).to_csv(out_path, index=False)
+
+    write_lock = threading.Lock()
+    progress_lock = threading.Lock()
+    progress = {"n": 0}
+    n_total = len(todo)
+    prompt_version = _prompt_version_for(args.variant)
+
+    def score_and_write(row) -> None:
+        context = build_context(row, position_index) if position_index is not None else None
+        context = _ablate(context, args.variant) if context else None
+        parsed = _score_one(args.model, row["text_to_classify"], context, prompt_version)
+
+        record = pd.DataFrame([{
+            "paragraph_id": row["paragraph_id"],
+            "segment_idx": row["segment_idx"],
+            "state": row["state"],
+            "date": row["date"],
+            "affiliation": row["affiliation"],
+            "content": row["text_to_classify"],
+            "impolite": parsed["impolite"],
+            "reason": parsed["reason"],
+            "model_name": args.model,
+            "variant": args.variant,
+        }])
+        with write_lock:
+            record.to_csv(out_path, mode="a", header=False, index=False)
+        with progress_lock:
+            progress["n"] += 1
+            n = progress["n"]
+            if n % 25 == 0:
+                elapsed = time.time() - start_time
+                avg = elapsed / n
+                remaining = avg * (n_total - n) / args.concurrency
+                print(f"  {n}/{n_total} scored this session -- {elapsed / 60:.1f} min "
+                      f"elapsed, avg {avg:.1f}s/call (concurrency={args.concurrency}), "
+                      f"~{remaining / 3600:.1f}h remaining this session")
+
     with RuntimeLogger(
         platform_label=args.platform_label,
         runtime="ollama",
         task_type="prediction",
         experiment=f"impoliteness full-corpus (scope={scope}, variant={args.variant})",
         model=args.model,
-        n_items=len(todo),
+        n_items=n_total,
         seed=SEED,
         temperature=0,
-        prompt_version=_prompt_version_for(args.variant),
+        prompt_version=prompt_version,
         output_path=str(out_path),
         extra={
             "num_ctx": NUM_CTX, "state": args.state, "variant": args.variant,
-            "already_scored_at_start": len(done_keys),
+            "already_scored_at_start": len(done_keys), "concurrency": args.concurrency,
         },
     ):
         start_time = time.time()
-        for i, (_, row) in enumerate(todo.iterrows()):
-            context = build_context(row, position_index) if position_index is not None else None
-            context = _ablate(context, args.variant) if context else None
-            parsed = _score_one(args.model, row["text_to_classify"], context, _prompt_version_for(args.variant))
+        if args.concurrency <= 1:
+            for _, row in todo.iterrows():
+                score_and_write(row)
+        else:
+            with ThreadPoolExecutor(max_workers=args.concurrency) as executor:
+                futures = [executor.submit(score_and_write, row) for _, row in todo.iterrows()]
+                for f in as_completed(futures):
+                    f.result()  # surface any worker exception instead of swallowing it
 
-            record = pd.DataFrame([{
-                "paragraph_id": row["paragraph_id"],
-                "segment_idx": row["segment_idx"],
-                "state": row["state"],
-                "date": row["date"],
-                "affiliation": row["affiliation"],
-                "content": row["text_to_classify"],
-                "impolite": parsed["impolite"],
-                "reason": parsed["reason"],
-                "model_name": args.model,
-                "variant": args.variant,
-            }])
-            record.to_csv(out_path, mode="a", header=write_header, index=False)
-            write_header = False
-
-            if (i + 1) % 25 == 0:
-                elapsed = time.time() - start_time
-                avg = elapsed / (i + 1)
-                remaining = avg * (len(todo) - (i + 1))
-                print(f"  {i + 1}/{len(todo)} scored this session -- {elapsed / 60:.1f} min "
-                      f"elapsed, avg {avg:.1f}s/call, ~{remaining / 3600:.1f}h remaining "
-                      f"this session")
-
-        print(f"Session done: scored {len(todo):,} rows -> {out_path} "
-              f"({len(done_keys) + len(todo):,}/{len(rows):,} total)")
+        print(f"Session done: scored {n_total:,} rows -> {out_path} "
+              f"({len(done_keys) + n_total:,}/{len(rows):,} total)")
 
 
 def main():
@@ -256,6 +279,14 @@ def main():
     parser.add_argument(
         "--platform-label", default="mac_m5_local",
         help="Device tag for the runtime log, e.g. mac_m5_local / colab_t4 / hiwi_pc_rtx4070ti",
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=1,
+        help="Concurrent requests to Ollama (full-corpus mode only; sample-file mode stays "
+             "sequential). 1 = sequential, same as before. Needs OLLAMA_NUM_PARALLEL raised "
+             "on the server side too, or requests just queue there instead of running in "
+             "parallel. Benchmark on your actual GPU first -- e.g. the Mac plateaus at "
+             "concurrency=2 with only ~20%% gain, a bigger-VRAM GPU may behave differently.",
     )
     args = parser.parse_args()
 
