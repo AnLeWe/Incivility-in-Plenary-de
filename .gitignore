@@ -35,3 +35,10 @@ labelling/.annotator_positions.json
 
 # Local progress/TODO tracking - not shared
 PROGRESS.md
+
+# Design specs - kept locally, not committed/pushed
+docs/superpowers/specs/
+
+# Paywalled article saved locally
+paper/Ausgelacht, beleidigt, unterbrochen_ Wer im Berliner Abgeordnetenhaus am häufigsten dazwischenruft.html
+paper/Ausgelacht, beleidigt, unterbrochen_ Wer im Berliner Abgeordnetenhaus am häufigsten dazwischenruft_files/
