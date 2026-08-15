@@ -70,3 +70,31 @@ def build_speech_documents(paragraphs: pd.DataFrame, period_windows: dict[str, d
     ]
 
     return grouped[["speech_id", "state", "period", "pre_post", "date", "text"]]
+
+
+def main(data_root: str) -> None:
+    raw = os.path.join(data_root, "raw")
+    proc = os.path.join(data_root, "processed")
+    v3 = os.path.join(raw, "stateparl_v3_parquet")
+
+    protocols = pd.read_parquet(os.path.join(v3, "stateparl_v3_protocols.parquet"))
+    protocols["date"] = pd.to_datetime(protocols["date"])
+
+    afd_entry = pd.read_csv(os.path.join(proc, "afd_entry_dates.csv"), parse_dates=["entry_date"])
+
+    paragraphs = pd.read_parquet(os.path.join(v3, "stateparl_v3_paragraphs.parquet"))
+    paragraphs["date"] = pd.to_datetime(paragraphs["date"])
+
+    windows = derive_period_windows(protocols, afd_entry)
+    print(f"Derived pre/post periods for {len(windows)} of {afd_entry['state'].nunique()} states")
+
+    docs = build_speech_documents(paragraphs, windows)
+    print(f"Built {len(docs):,} speech documents across {docs['state'].nunique()} states")
+
+    out_path = os.path.join(proc, "speeches_afd_prepost.parquet")
+    docs.to_parquet(out_path, index=False)
+    print(f"Wrote {out_path}")
+
+
+if __name__ == "__main__":
+    main(os.environ["DATA_ROOT"])
