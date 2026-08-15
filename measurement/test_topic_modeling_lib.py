@@ -93,3 +93,37 @@ def test_load_corpus_samples_deterministically(tmp_path):
 
     assert list(first["speech_id"]) == list(second["speech_id"])
     assert len(first) == 2
+
+
+import spacy
+
+from topic_modeling_lib import make_spacy_preprocessor
+
+
+def test_make_spacy_preprocessor_lowercases_and_drops_short_and_nonalpha_tokens():
+    nlp = spacy.blank("de")
+    preprocess = make_spacy_preprocessor(nlp)
+
+    result = preprocess(["Die Politik ist 2019 wichtig."])
+
+    assert result == [["politik", "wichtig"]]
+
+
+def test_make_spacy_preprocessor_drops_stopwords():
+    nlp = spacy.blank("de")
+    preprocess = make_spacy_preprocessor(nlp)
+
+    result = preprocess(["Und dann kam die Regierung."])
+
+    assert "und" not in result[0]
+    assert "dann" not in result[0]
+    assert "regierung" in result[0]
+
+
+def test_make_spacy_preprocessor_handles_multiple_documents():
+    nlp = spacy.blank("de")
+    preprocess = make_spacy_preprocessor(nlp)
+
+    result = preprocess(["Erste Rede.", "Zweite Rede."])
+
+    assert len(result) == 2
