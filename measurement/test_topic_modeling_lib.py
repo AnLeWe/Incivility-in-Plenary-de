@@ -48,3 +48,48 @@ def test_load_cache_returns_none_when_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
 
     assert load_cache({"nope": True}, suffix=".pkl") is None
+
+
+import pandas as pd
+
+from topic_modeling_lib import load_corpus
+
+
+def _write_fixture_corpus(data_root):
+    proc = data_root / "processed"
+    proc.mkdir(parents=True)
+    df = pd.DataFrame({
+        "speech_id": ["s1", "s2", "s3", "s4"],
+        "state": ["by", "by", "th", "th"],
+        "period": [18, 17, 6, 5],
+        "pre_post": ["post", "pre", "post", "pre"],
+        "date": pd.to_datetime(["2019-01-01", "2014-01-01", "2015-01-01", "2013-01-01"]),
+        "text": ["a", "b", "c", "d"],
+    })
+    df.to_parquet(proc / "speeches_afd_prepost.parquet", index=False)
+
+
+def test_load_corpus_filters_by_state_and_pre_post(tmp_path):
+    _write_fixture_corpus(tmp_path)
+
+    result = load_corpus(str(tmp_path), states=["by"], pre_post="post")
+
+    assert list(result["speech_id"]) == ["s1"]
+
+
+def test_load_corpus_defaults_to_everything(tmp_path):
+    _write_fixture_corpus(tmp_path)
+
+    result = load_corpus(str(tmp_path))
+
+    assert len(result) == 4
+
+
+def test_load_corpus_samples_deterministically(tmp_path):
+    _write_fixture_corpus(tmp_path)
+
+    first = load_corpus(str(tmp_path), sample_n=2, seed=7)
+    second = load_corpus(str(tmp_path), sample_n=2, seed=7)
+
+    assert list(first["speech_id"]) == list(second["speech_id"])
+    assert len(first) == 2
