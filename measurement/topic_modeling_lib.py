@@ -9,6 +9,7 @@ import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Callable
 
 import joblib
 import pandas as pd
@@ -75,3 +76,26 @@ def load_corpus(
         df = df.sample(n=sample_n, random_state=seed)
 
     return df.reset_index(drop=True)
+
+
+def make_spacy_preprocessor(nlp) -> Callable[[list[str]], list[list[str]]]:
+    """Returns a tokenize/lemmatize/stopword-removal function bound to `nlp`. Passed a
+    spacy.blank("de") in tests (fast, no model download) and spacy.load("de_core_news_lg") in
+    the real notebook -- this indirection is what makes preprocessing swappable without
+    changing build_gensim_corpus/build_sklearn_corpus, which only ever see the token lists this
+    produces."""
+
+    def _preprocess(texts: list[str]) -> list[list[str]]:
+        docs = nlp.pipe(texts, disable=[p for p in ("parser", "ner") if p in nlp.pipe_names])
+        result = []
+        for doc in docs:
+            tokens = []
+            for tok in doc:
+                # Use lemma if available, otherwise use text (for blank models)
+                token_value = tok.lemma_ if tok.lemma_ else tok.text
+                if tok.is_alpha and not tok.is_stop and len(token_value) > 2:
+                    tokens.append(token_value.lower())
+            result.append(tokens)
+        return result
+
+    return _preprocess
