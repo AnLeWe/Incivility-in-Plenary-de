@@ -10,6 +10,7 @@ preprocessing
 protobuf
 python-dotenv
 requests
+scikit_learn
 spacy
 streamlit
 tqdm

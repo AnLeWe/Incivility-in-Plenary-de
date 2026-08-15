@@ -12,9 +12,13 @@ from pathlib import Path
 from typing import Callable
 
 import joblib
+import numpy as np
 import pandas as pd
 from gensim import corpora
 from gensim.models import CoherenceModel, LdaModel
+from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
 
 
 @contextmanager
@@ -135,6 +139,51 @@ def gensim_coherence_scan(
         elapsed = time.perf_counter() - start
         print(f"[gensim k={k}] {elapsed:.2f}s, coherence={coherence:.4f}")
         rows.append({"k": k, "coherence": coherence, "seconds": elapsed, "model": model})
+
+    result = pd.DataFrame(rows)
+    save_cache(result, cache_params, suffix=".pkl")
+    return result
+
+
+def build_sklearn_corpus(tokenized_docs: list[list[str]]):
+    """Reuses the already-tokenized/lemmatized docs from make_spacy_preprocessor -- the
+    vectorizer's analyzer is the identity function, it does no tokenization of its own."""
+    vectorizer = CountVectorizer(analyzer=lambda tokens: tokens)
+    dtm = vectorizer.fit_transform(tokenized_docs)
+    return vectorizer, dtm
+
+
+def sklearn_loglikelihood_search(
+    dtm,
+    k_range: list[int],
+    params: dict,
+    n_iter: int | None = None,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Random search over k_range, each k scored by held-out log-likelihood (sklearn's
+    LatentDirichletAllocation.score() on a 20% validation split) -- the approach from the
+    linked practical guide, run alongside (not instead of) gensim_coherence_scan's coherence
+    approach so the two can be compared."""
+    cache_params = {**params, "method": "sklearn", "k_range": list(k_range), "n_iter": n_iter}
+    cached = load_cache(cache_params, suffix=".pkl")
+    if cached is not None:
+        return cached
+
+    train_dtm, val_dtm = train_test_split(dtm, test_size=0.2, random_state=seed)
+
+    rng = np.random.default_rng(seed)
+    n_iter = len(k_range) if n_iter is None else min(n_iter, len(k_range))
+    tried_ks = rng.choice(k_range, size=n_iter, replace=False)
+
+    rows = []
+    for k in tried_ks:
+        start = time.perf_counter()
+        model = LatentDirichletAllocation(n_components=int(k), random_state=seed)
+        model.fit(train_dtm)
+        score = model.score(val_dtm)
+        elapsed = time.perf_counter() - start
+        print(f"[sklearn k={k}] {elapsed:.2f}s, log_likelihood={score:.2f}")
+        rows.append({"k": int(k), "log_likelihood": score, "seconds": elapsed, "model": model})
 
     result = pd.DataFrame(rows)
     save_cache(result, cache_params, suffix=".pkl")

@@ -172,3 +172,38 @@ def test_gensim_coherence_scan_uses_cache_on_repeat_call(tmp_path, monkeypatch):
     second = gensim_coherence_scan(_TOY_DOCS, dictionary, corpus, k_range=[2], params=params)
 
     assert list(first["k"]) == list(second["k"])
+
+
+from topic_modeling_lib import build_sklearn_corpus, sklearn_loglikelihood_search
+
+
+def test_build_sklearn_corpus_shapes():
+    vectorizer, dtm = build_sklearn_corpus(_TOY_DOCS)
+
+    assert dtm.shape[0] == len(_TOY_DOCS)
+    assert len(vectorizer.vocabulary_) > 0
+
+
+def test_sklearn_loglikelihood_search_returns_one_row_per_k(tmp_path, monkeypatch):
+    import topic_modeling_lib
+    monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
+
+    _, dtm = build_sklearn_corpus(_TOY_DOCS)
+    result = sklearn_loglikelihood_search(
+        dtm, k_range=[2, 3], params={"test": "sklearn-search"},
+    )
+
+    assert sorted(result["k"]) == [2, 3]
+    assert (result["seconds"] >= 0).all()
+
+
+def test_sklearn_loglikelihood_search_respects_n_iter(tmp_path, monkeypatch):
+    import topic_modeling_lib
+    monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
+
+    _, dtm = build_sklearn_corpus(_TOY_DOCS)
+    result = sklearn_loglikelihood_search(
+        dtm, k_range=[2, 3, 4], params={"test": "sklearn-search-niter"}, n_iter=2, seed=1,
+    )
+
+    assert len(result) == 2
