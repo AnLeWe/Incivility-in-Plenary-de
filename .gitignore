@@ -36,3 +36,6 @@ labelling/.annotator_positions.json
 
 # Local progress/TODO tracking - not shared
 PROGRESS.md
+
+# Topic modeling cache -- pickled models/scans, local only, can be large
+measurement/run_history/topic_modeling/
