@@ -127,3 +127,48 @@ def test_make_spacy_preprocessor_handles_multiple_documents():
     result = preprocess(["Erste Rede.", "Zweite Rede."])
 
     assert len(result) == 2
+
+
+from topic_modeling_lib import build_gensim_corpus, gensim_coherence_scan
+
+_TOY_DOCS = [
+    ["politik", "steuer", "haushalt"],
+    ["steuer", "haushalt", "budget"],
+    ["schule", "bildung", "lehrer"],
+    ["bildung", "lehrer", "unterricht"],
+    ["politik", "haushalt", "budget"],
+    ["schule", "unterricht", "lehrer"],
+]
+
+
+def test_build_gensim_corpus_shapes():
+    dictionary, corpus = build_gensim_corpus(_TOY_DOCS)
+
+    assert len(corpus) == len(_TOY_DOCS)
+    assert dictionary.token2id  # non-empty vocabulary
+
+
+def test_gensim_coherence_scan_returns_one_row_per_k(tmp_path, monkeypatch):
+    import topic_modeling_lib
+    monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
+
+    dictionary, corpus = build_gensim_corpus(_TOY_DOCS)
+    result = gensim_coherence_scan(
+        _TOY_DOCS, dictionary, corpus, k_range=[2, 3], params={"test": "gensim-scan"},
+    )
+
+    assert list(result["k"]) == [2, 3]
+    assert result["coherence"].notna().all()
+    assert (result["seconds"] >= 0).all()
+
+
+def test_gensim_coherence_scan_uses_cache_on_repeat_call(tmp_path, monkeypatch):
+    import topic_modeling_lib
+    monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
+
+    dictionary, corpus = build_gensim_corpus(_TOY_DOCS)
+    params = {"test": "gensim-scan-cache"}
+    first = gensim_coherence_scan(_TOY_DOCS, dictionary, corpus, k_range=[2], params=params)
+    second = gensim_coherence_scan(_TOY_DOCS, dictionary, corpus, k_range=[2], params=params)
+
+    assert list(first["k"]) == list(second["k"])
