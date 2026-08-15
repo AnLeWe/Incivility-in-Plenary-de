@@ -41,3 +41,32 @@ def derive_period_windows(protocols: pd.DataFrame, afd_entry: pd.DataFrame) -> d
         windows[state] = {"pre": pre_period, "post": post_period}
 
     return windows
+
+
+def build_speech_documents(paragraphs: pd.DataFrame, period_windows: dict[str, dict[str, int]]) -> pd.DataFrame:
+    """One row per speech falling inside its state's pre- or post-AfD-entry period, with
+    paragraph content concatenated in reading order. Excludes `nsc` (interjection) rows --
+    those interrupt a speech, they aren't part of it."""
+    keep_mask = pd.Series(False, index=paragraphs.index)
+    pre_post_lookup: dict[tuple[str, int], str] = {}
+    for state, window in period_windows.items():
+        for label, period in window.items():
+            in_window = (paragraphs["state"] == state) & (paragraphs["period"] == period)
+            keep_mask |= in_window
+            pre_post_lookup[(state, period)] = label
+
+    scoped = paragraphs[keep_mask & (paragraphs["affiliation"] != NON_SPEECH_AFFILIATION)].copy()
+    scoped = scoped.sort_values(["speech_id", "protocol_position", "segment_position"])
+
+    grouped = scoped.groupby("speech_id").agg(
+        state=("state", "first"),
+        period=("period", "first"),
+        date=("date", "first"),
+        text=("content", lambda s: " ".join(s.dropna())),
+    ).reset_index()
+
+    grouped["pre_post"] = [
+        pre_post_lookup[(row.state, row.period)] for row in grouped.itertuples()
+    ]
+
+    return grouped[["speech_id", "state", "period", "pre_post", "date", "text"]]
