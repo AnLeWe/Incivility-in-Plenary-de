@@ -6,6 +6,7 @@
 
 # Python
 norm_env/
+topic_modeling_env/
 __pycache__/
 *.pyc
 *.pyo
