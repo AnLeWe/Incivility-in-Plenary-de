@@ -1,5 +1,6 @@
 beautifulsoup4
 defusedxml
+gensim
 joblib
 numpy
 ollama

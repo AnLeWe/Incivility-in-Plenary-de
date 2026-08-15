@@ -13,6 +13,8 @@ from typing import Callable
 
 import joblib
 import pandas as pd
+from gensim import corpora
+from gensim.models import CoherenceModel, LdaModel
 
 
 @contextmanager
@@ -99,3 +101,41 @@ def make_spacy_preprocessor(nlp) -> Callable[[list[str]], list[list[str]]]:
         return result
 
     return _preprocess
+
+
+def build_gensim_corpus(tokenized_docs: list[list[str]]) -> tuple[corpora.Dictionary, list]:
+    dictionary = corpora.Dictionary(tokenized_docs)
+    corpus = [dictionary.doc2bow(doc) for doc in tokenized_docs]
+    return dictionary, corpus
+
+
+def gensim_coherence_scan(
+    tokenized_docs: list[list[str]],
+    dictionary,
+    corpus: list,
+    k_range: list[int],
+    params: dict,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Fits a gensim LdaModel per k in k_range, scored by c_v coherence. Cached under
+    params | {"method": "gensim"} so re-running the notebook with unchanged params/k_range
+    loads from disk instead of re-fitting."""
+    cache_params = {**params, "method": "gensim", "k_range": list(k_range)}
+    cached = load_cache(cache_params, suffix=".pkl")
+    if cached is not None:
+        return cached
+
+    rows = []
+    for k in k_range:
+        start = time.perf_counter()
+        model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=k, random_state=seed)
+        coherence = CoherenceModel(
+            model=model, texts=tokenized_docs, dictionary=dictionary, coherence="c_v",
+        ).get_coherence()
+        elapsed = time.perf_counter() - start
+        print(f"[gensim k={k}] {elapsed:.2f}s, coherence={coherence:.4f}")
+        rows.append({"k": k, "coherence": coherence, "seconds": elapsed, "model": model})
+
+    result = pd.DataFrame(rows)
+    save_cache(result, cache_params, suffix=".pkl")
+    return result
