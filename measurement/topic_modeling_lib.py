@@ -5,11 +5,13 @@ rationale.
 """
 import hashlib
 import json
+import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
 
 import joblib
+import pandas as pd
 
 
 @contextmanager
@@ -50,3 +52,26 @@ def save_cache(obj, params: dict, suffix: str) -> Path:
 def load_cache(params: dict, suffix: str):
     path = cache_path(params, suffix)
     return joblib.load(path) if path.exists() else None
+
+
+def load_corpus(
+    data_root: str,
+    states: list[str] | None = None,
+    pre_post: str | None = None,
+    sample_n: int | None = None,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Reads DATA_ROOT/processed/speeches_afd_prepost.parquet (built once by
+    preprocessing/afd_period_window.py) and filters/samples it -- this function never rebuilds
+    the pre/post-AfD window itself."""
+    path = os.path.join(data_root, "processed", "speeches_afd_prepost.parquet")
+    df = pd.read_parquet(path)
+
+    if states is not None:
+        df = df[df["state"].isin(states)]
+    if pre_post is not None:
+        df = df[df["pre_post"] == pre_post]
+    if sample_n is not None:
+        df = df.sample(n=sample_n, random_state=seed)
+
+    return df.reset_index(drop=True)
