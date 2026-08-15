@@ -1,14 +1,11 @@
 beautifulsoup4
 defusedxml
-krippendorff
-lxml
 numpy
 ollama
 openpyxl
 pandas
 preprocessing
 protobuf
-pyarrow
 python-dotenv
 requests
 streamlit
