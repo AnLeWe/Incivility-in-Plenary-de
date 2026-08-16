@@ -93,16 +93,39 @@ speech <- readRDS(unz(ZIP_PATH, "Corpus_speeches_germany.RDS"))
 
 Render with: `quarto render "src/ParlLawSpeech-Initial-Exploration.qmd"`
 
+## Virtualenvs: `norm_env` vs. `topic_modeling_env`
+
+Two Python environments, split by file (not by directory):
+
+- **`norm_env`** (Python 3.14, `requirements.txt`) — everything by default, including
+  `preprocessing/afd_period_window.py` and most of `measurement/` (`impoliteness_lib.py`,
+  `impoliteness_pilot.ipynb`, `score_with_model.py`, …).
+- **`topic_modeling_env`** (Python 3.11, `requirements-topic-modeling.txt`) — only
+  `measurement/topic_modeling_lib.py`, `measurement/topic_modeling.ipynb`, and
+  `measurement/test_topic_modeling_lib.py`. It exists because `gensim` has no usable wheel for
+  Python 3.14; see README's "Python: `topic_modeling_env`" section for the setup commands.
+
+**Running `measurement/`'s tests:** the full directory suite (`pytest measurement/`) needs
+`topic_modeling_env`, not `norm_env`. Under `norm_env` the whole run *aborts with a collection
+error* (Python 3.14 can't import `gensim`) rather than skipping just the gensim-dependent tests —
+so a whole-directory pytest run under `norm_env` fails even for the tests that would otherwise
+pass. Use `topic_modeling_env/bin/python -m pytest measurement/`, or, under `norm_env`, name the
+files you want (e.g. `norm_env/bin/python -m pytest measurement/test_impoliteness_lib.py`).
+`preprocessing/`'s tests run under `norm_env` as usual.
+
 ## requirements.txt
 
-`requirements.txt` is regenerated from actual imports, not hand-maintained. A git hook
-(`.githooks/pre-commit`) runs `scripts/update_requirements.py` on any commit touching
-`src/`, `labelling/`, `measurement/`, `preprocessing/`, or `utils/` `.py`/`.ipynb` files,
-and re-stages the result.
+`requirements.txt` (norm_env) and `requirements-topic-modeling.txt` (topic_modeling_env) are
+regenerated from actual imports, not hand-maintained. A git hook (`.githooks/pre-commit`) runs
+`scripts/update_requirements.py` on any commit touching `src/`, `labelling/`, `measurement/`,
+`preprocessing/`, or `utils/` `.py`/`.ipynb` files, and re-stages both results. The script scans
+those dirs for `requirements.txt` while excluding the three topic-modeling files listed above,
+and scans only those three files for `requirements-topic-modeling.txt`.
 One-time setup per clone: `uv tool install pipreqs` and `git config core.hooksPath .githooks`.
 `scripts/update_requirements.py` has an `ALWAYS_INCLUDE` allowlist for packages pandas needs
-as I/O engines (e.g. `openpyxl` for `pd.read_excel`) that import-scanning can't detect since
-no file ever does `import openpyxl` by name — add to that set if a similar case comes up.
+as I/O engines (e.g. `openpyxl` for `pd.read_excel`, `pyarrow` for `pd.read_parquet`) that
+import-scanning can't detect since no file ever does `import openpyxl` by name — add to that set
+(or its topic-modeling twin) if a similar case comes up.
 
 ## README
 

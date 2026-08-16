@@ -1,0 +1,8 @@
+gensim
+joblib
+numpy
+pandas
+pyarrow
+python-dotenv
+scikit_learn
+spacy
