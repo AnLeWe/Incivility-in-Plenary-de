@@ -207,3 +207,52 @@ def test_sklearn_loglikelihood_search_respects_n_iter(tmp_path, monkeypatch):
     )
 
     assert len(result) == 2
+
+
+from topic_modeling_lib import _scan_cache_params
+
+
+def test_scan_cache_params_key_differs_by_seed():
+    a = cache_key(_scan_cache_params({"state": "by"}, "gensim", [5, 10], seed=1))
+    b = cache_key(_scan_cache_params({"state": "by"}, "gensim", [5, 10], seed=2))
+
+    assert a != b
+
+
+def test_scan_cache_params_key_ignores_k_range_order():
+    a = cache_key(_scan_cache_params({"state": "by"}, "gensim", [5, 10], seed=42))
+    b = cache_key(_scan_cache_params({"state": "by"}, "gensim", [10, 5], seed=42))
+
+    assert a == b
+
+
+def test_scan_cache_params_key_differs_by_method():
+    a = cache_key(_scan_cache_params({"state": "by"}, "gensim", [5], seed=42))
+    b = cache_key(_scan_cache_params({"state": "by"}, "sklearn", [5], seed=42))
+
+    assert a != b
+
+
+def test_gensim_coherence_scan_writes_separate_cache_entry_per_seed(tmp_path, monkeypatch):
+    import topic_modeling_lib
+    monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
+
+    dictionary, corpus = build_gensim_corpus(_TOY_DOCS)
+    params = {"test": "gensim-scan-seed"}
+    gensim_coherence_scan(_TOY_DOCS, dictionary, corpus, k_range=[2], params=params, seed=1)
+    gensim_coherence_scan(_TOY_DOCS, dictionary, corpus, k_range=[2], params=params, seed=2)
+
+    assert len(list(tmp_path.glob("*.pkl"))) == 2
+
+
+def test_sklearn_search_shares_cache_entry_for_equivalent_n_iter(tmp_path, monkeypatch):
+    """n_iter=None and n_iter=len(k_range) are the same search, so they must share a key."""
+    import topic_modeling_lib
+    monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
+
+    _, dtm = build_sklearn_corpus(_TOY_DOCS)
+    params = {"test": "sklearn-search-niter-clamp"}
+    sklearn_loglikelihood_search(dtm, k_range=[2, 3], params=params, n_iter=None)
+    sklearn_loglikelihood_search(dtm, k_range=[2, 3], params=params, n_iter=2)
+
+    assert len(list(tmp_path.glob("*.pkl"))) == 1
