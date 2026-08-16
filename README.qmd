@@ -112,6 +112,21 @@ source norm_env/bin/activate
 uv pip install -r requirements.txt
 ```
 
+### Python: `topic_modeling_env` (topic modeling only)
+
+The topic-modeling code (`measurement/topic_modeling_lib.py`, `measurement/topic_modeling.ipynb`, `measurement/test_topic_modeling_lib.py`) runs in a second, narrowly-scoped virtualenv on **Python 3.11**, not `norm_env`: `gensim` has no usable wheel for the Python 3.14 that `norm_env` is pinned to. Everything else in the project — including the rest of `measurement/` — keeps using `norm_env`.
+
+```bash
+/opt/homebrew/bin/python3.11 -m venv topic_modeling_env   # or: $(which python3.11) -m venv ...
+topic_modeling_env/bin/pip install -r requirements-topic-modeling.txt
+topic_modeling_env/bin/pip install jupyter   # notebook/kernel tooling, not import-scanned
+topic_modeling_env/bin/python -m spacy download de_core_news_lg
+topic_modeling_env/bin/python -m ipykernel install --user \
+  --name topic_modeling_env --display-name "topic_modeling_env (py3.11)"
+```
+
+The last step registers the Jupyter kernel that `measurement/topic_modeling.ipynb` expects (its saved metadata names the kernel `topic_modeling_env`). Run the topic-modeling tests with this venv too: `topic_modeling_env/bin/python -m pytest measurement/test_topic_modeling_lib.py`.
+
 ### R
 
 Open `Incivility-in-Plenary-de.Rproj` in RStudio. Packages: `tidyverse`, `arrow`, `lubridate`.
