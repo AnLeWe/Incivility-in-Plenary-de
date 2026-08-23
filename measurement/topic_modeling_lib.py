@@ -164,8 +164,34 @@ def build_sklearn_corpus(tokenized_docs: list[list[str]]):
     return vectorizer, dtm
 
 
+def sklearn_topic_words(model, vectorizer, topn: int = 10) -> list[list[str]]:
+    """Top `topn` words per topic from a fitted sklearn LatentDirichletAllocation, as word
+    strings (not IDs) -- the shape gensim's CoherenceModel needs when scoring topics that
+    didn't come from a gensim model."""
+    feature_names = vectorizer.get_feature_names_out()
+    topics = []
+    for component in model.components_:
+        top_indices = component.argsort()[::-1][:topn]
+        topics.append([feature_names[i] for i in top_indices])
+    return topics
+
+
+def sklearn_topic_coherence(model, vectorizer, tokenized_docs: list[list[str]], dictionary, topn: int = 10) -> float:
+    """c_v coherence for a fitted sklearn LDA model, scored the same way as gensim's
+    (CoherenceModel against `dictionary`, built from the same tokenized_docs) -- lets the two
+    libraries' models be compared on one shared metric, not just each library's own native
+    score (gensim's own coherence vs. sklearn's held-out log-likelihood)."""
+    topics = sklearn_topic_words(model, vectorizer, topn=topn)
+    return CoherenceModel(
+        topics=topics, texts=tokenized_docs, dictionary=dictionary, coherence="c_v",
+    ).get_coherence()
+
+
 def sklearn_loglikelihood_search(
     dtm,
+    vectorizer,
+    tokenized_docs: list[list[str]],
+    dictionary,
     k_range: list[int],
     params: dict,
     n_iter: int | None = None,
@@ -173,8 +199,9 @@ def sklearn_loglikelihood_search(
 ) -> pd.DataFrame:
     """Random search over k_range, each k scored by held-out log-likelihood (sklearn's
     LatentDirichletAllocation.score() on a 20% validation split) -- the approach from the
-    linked practical guide, run alongside (not instead of) gensim_coherence_scan's coherence
-    approach so the two can be compared.
+    linked practical guide -- AND by c_v coherence (via sklearn_topic_coherence), so this can
+    be compared against gensim_coherence_scan's coherence on the same metric, not just eyeballed
+    across two different criteria.
 
     k_range is sorted before sampling from it so that the K's actually tried depend only on the
     *set* of K's requested, matching the cache key built from the same sorted list. n_iter enters
@@ -199,9 +226,13 @@ def sklearn_loglikelihood_search(
         model = LatentDirichletAllocation(n_components=int(k), random_state=seed)
         model.fit(train_dtm)
         score = model.score(val_dtm)
+        coherence = sklearn_topic_coherence(model, vectorizer, tokenized_docs, dictionary)
         elapsed = time.perf_counter() - start
-        print(f"[sklearn k={k}] {elapsed:.2f}s, log_likelihood={score:.2f}")
-        rows.append({"k": int(k), "log_likelihood": score, "seconds": elapsed, "model": model})
+        print(f"[sklearn k={k}] {elapsed:.2f}s, log_likelihood={score:.2f}, coherence={coherence:.4f}")
+        rows.append({
+            "k": int(k), "log_likelihood": score, "coherence": coherence,
+            "seconds": elapsed, "model": model,
+        })
 
     result = pd.DataFrame(rows)
     save_cache(result, cache_params, suffix=".pkl")
