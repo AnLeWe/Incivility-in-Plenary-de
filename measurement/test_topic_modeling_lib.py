@@ -174,7 +174,12 @@ def test_gensim_coherence_scan_uses_cache_on_repeat_call(tmp_path, monkeypatch):
     assert list(first["k"]) == list(second["k"])
 
 
-from topic_modeling_lib import build_sklearn_corpus, sklearn_loglikelihood_search
+from topic_modeling_lib import (
+    build_gensim_corpus,
+    build_sklearn_corpus,
+    sklearn_loglikelihood_search,
+    sklearn_topic_coherence,
+)
 
 
 def test_build_sklearn_corpus_shapes():
@@ -184,26 +189,42 @@ def test_build_sklearn_corpus_shapes():
     assert len(vectorizer.vocabulary_) > 0
 
 
+def test_sklearn_topic_coherence_returns_a_float():
+    from sklearn.decomposition import LatentDirichletAllocation
+
+    vectorizer, dtm = build_sklearn_corpus(_TOY_DOCS)
+    dictionary, _ = build_gensim_corpus(_TOY_DOCS)
+    model = LatentDirichletAllocation(n_components=2, random_state=42).fit(dtm)
+
+    coherence = sklearn_topic_coherence(model, vectorizer, _TOY_DOCS, dictionary)
+
+    assert isinstance(coherence, float)
+
+
 def test_sklearn_loglikelihood_search_returns_one_row_per_k(tmp_path, monkeypatch):
     import topic_modeling_lib
     monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
 
-    _, dtm = build_sklearn_corpus(_TOY_DOCS)
+    vectorizer, dtm = build_sklearn_corpus(_TOY_DOCS)
+    dictionary, _ = build_gensim_corpus(_TOY_DOCS)
     result = sklearn_loglikelihood_search(
-        dtm, k_range=[2, 3], params={"test": "sklearn-search"},
+        dtm, vectorizer, _TOY_DOCS, dictionary, k_range=[2, 3], params={"test": "sklearn-search"},
     )
 
     assert sorted(result["k"]) == [2, 3]
     assert (result["seconds"] >= 0).all()
+    assert result["coherence"].notna().all()
 
 
 def test_sklearn_loglikelihood_search_respects_n_iter(tmp_path, monkeypatch):
     import topic_modeling_lib
     monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
 
-    _, dtm = build_sklearn_corpus(_TOY_DOCS)
+    vectorizer, dtm = build_sklearn_corpus(_TOY_DOCS)
+    dictionary, _ = build_gensim_corpus(_TOY_DOCS)
     result = sklearn_loglikelihood_search(
-        dtm, k_range=[2, 3, 4], params={"test": "sklearn-search-niter"}, n_iter=2, seed=1,
+        dtm, vectorizer, _TOY_DOCS, dictionary,
+        k_range=[2, 3, 4], params={"test": "sklearn-search-niter"}, n_iter=2, seed=1,
     )
 
     assert len(result) == 2
@@ -250,9 +271,10 @@ def test_sklearn_search_shares_cache_entry_for_equivalent_n_iter(tmp_path, monke
     import topic_modeling_lib
     monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
 
-    _, dtm = build_sklearn_corpus(_TOY_DOCS)
+    vectorizer, dtm = build_sklearn_corpus(_TOY_DOCS)
+    dictionary, _ = build_gensim_corpus(_TOY_DOCS)
     params = {"test": "sklearn-search-niter-clamp"}
-    sklearn_loglikelihood_search(dtm, k_range=[2, 3], params=params, n_iter=None)
-    sklearn_loglikelihood_search(dtm, k_range=[2, 3], params=params, n_iter=2)
+    sklearn_loglikelihood_search(dtm, vectorizer, _TOY_DOCS, dictionary, k_range=[2, 3], params=params, n_iter=None)
+    sklearn_loglikelihood_search(dtm, vectorizer, _TOY_DOCS, dictionary, k_range=[2, 3], params=params, n_iter=2)
 
     assert len(list(tmp_path.glob("*.pkl"))) == 1

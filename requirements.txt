@@ -1,5 +1,7 @@
 beautifulsoup4
 defusedxml
+krippendorff
+lxml
 numpy
 ollama
 openpyxl
