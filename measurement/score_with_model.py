@@ -1,4 +1,5 @@
-"""Score paragraphs with a given Ollama model. Two modes:
+"""Score paragraphs with a given Ollama model. --construct picks impoliteness (default) or
+morality; two modes within each construct:
 
 1. Fixed-sample mode (--sample-file, default): for inter-rater comparison and the
    context-ablation study (v1 baseline vs. +-1 window vs. ordnungsruf flag vs. both).
@@ -31,6 +32,11 @@ impoliteness_lib.build_prompt's docstring for the format):
   window_flag - both (the real build_context() output, v2 as designed)
 All non-baseline variants use SYSTEM_PROMPT v2 (see PROMPT_VERSION) since the window/flag
 explanation text is part of the system prompt itself, not just the per-call content.
+
+--construct morality scores moral civility instead (neutral/moralisch/unmoralisch, see
+morality_lib.py + morality_measurement.md) -- only --variant baseline is supported for it
+so far, since its prompt (unlike impoliteness's v2) has no "Eingabeformat" section
+explaining the context-window tags, the exact gap that caused impoliteness's v1->v2 fix.
 """
 import argparse
 import os
@@ -44,10 +50,8 @@ from pathlib import Path
 import ollama
 import pandas as pd
 
-from impoliteness_lib import (
-    PROMPT_VERSION, build_classification_pool, build_context, build_position_index,
-    build_prompt, parse_response,
-)
+import impoliteness_lib
+import morality_lib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.runtime_log import RuntimeLogger
@@ -55,11 +59,33 @@ from utils.runtime_log import RuntimeLogger
 SEED = 20260723
 NUM_CTX = 40960
 VARIANTS = ("baseline", "window", "flag", "window_flag")
-V1_PROMPT_VERSION = "v1_codebook-binary_2026-07-27"
+
+# Per-construct: which lib module to use, its output CSV field name, the filename
+# prefix for both modes' output files, which --variant values it supports (morality
+# has no context-window-aware prompt yet, so only baseline), and which prompt version
+# --variant baseline pins to (impoliteness has an actual v1; morality's only version
+# so far doubles as its own "baseline").
+CONSTRUCTS = {
+    "impoliteness": {
+        "module": impoliteness_lib,
+        "label_field": "impolite",
+        "file_prefix": "impoliteness",
+        "variants": VARIANTS,
+        "v1_prompt_version": "v1_codebook-binary_2026-07-27",
+    },
+    "morality": {
+        "module": morality_lib,
+        "label_field": "moral_civility",
+        "file_prefix": "morality",
+        "variants": ("baseline",),
+        "v1_prompt_version": morality_lib.PROMPT_VERSION,
+    },
+}
 
 
-def _prompt_version_for(variant: str) -> str:
-    return V1_PROMPT_VERSION if variant == "baseline" else PROMPT_VERSION
+def _prompt_version_for(construct: str, variant: str) -> str:
+    spec = CONSTRUCTS[construct]
+    return spec["v1_prompt_version"] if variant == "baseline" else spec["module"].PROMPT_VERSION
 
 
 def _ablate(context: dict, variant: str) -> dict | None:
@@ -72,18 +98,22 @@ def _ablate(context: dict, variant: str) -> dict | None:
     return context  # window_flag
 
 
-def _score_one(model: str, text: str, context: dict | None, prompt_version: str) -> dict:
+def _score_one(model: str, text: str, context: dict | None, prompt_version: str, spec: dict) -> dict:
+    mod = spec["module"]
     response = ollama.chat(
         model=model,
-        messages=build_prompt(text, context, prompt_version=prompt_version),
+        messages=mod.build_prompt(text, context, prompt_version=prompt_version),
         think=False,
         format="json",
         options={"temperature": 0, "seed": SEED, "num_ctx": NUM_CTX},
     )
-    return parse_response(response["message"]["content"])
+    return mod.parse_response(response["message"]["content"])
 
 
 def run_sample_file(args, data_root: str) -> None:
+    spec = CONSTRUCTS[args.construct]
+    mod, label_field = spec["module"], spec["label_field"]
+
     sample_path = Path(args.sample_file) if args.sample_file else (
         Path(data_root) / "measurement" / "pilot_sample_n500_seed20260723.csv"
     )
@@ -94,40 +124,41 @@ def run_sample_file(args, data_root: str) -> None:
     context_by_paragraph = {}
     if args.variant != "baseline":
         print("Building classification pool for context lookups...")
-        pool = build_classification_pool(data_root, verbose=False)
-        position_index = build_position_index(pool.merged)
+        pool = mod.build_classification_pool(data_root, verbose=False)
+        position_index = mod.build_position_index(pool.merged)
         pool_by_id = pool.dedup.set_index("paragraph_id")
         for pid in sample["paragraph_id"]:
             if pid in pool_by_id.index:
                 row = pool_by_id.loc[pid]
                 row = row.iloc[0] if isinstance(row, pd.DataFrame) else row
-                context_by_paragraph[pid] = build_context(row, position_index)
+                context_by_paragraph[pid] = mod.build_context(row, position_index)
 
     run_date = date.today().isoformat()
     model_slug = args.model.replace(":", "-").replace(".", "-")
     suffix = "" if args.variant == "baseline" else f"_{args.variant}"
-    out_name = f"impoliteness_pilot_predictions_{run_date}_{model_slug}_n{len(sample)}{suffix}.csv"
+    out_name = f"{spec['file_prefix']}_pilot_predictions_{run_date}_{model_slug}_n{len(sample)}{suffix}.csv"
     out_path = Path(data_root) / "measurement" / out_name
 
     with RuntimeLogger(
         platform_label=args.platform_label,
         runtime="ollama",
         task_type="prediction",
-        experiment=f"impoliteness context-ablation ({args.variant})",
+        experiment=f"{args.construct} context-ablation ({args.variant})",
         model=args.model,
         n_items=len(sample),
         seed=SEED,
         temperature=0,
-        prompt_version=_prompt_version_for(args.variant),
+        prompt_version=_prompt_version_for(args.construct, args.variant),
         output_path=str(out_path),
         extra={"num_ctx": NUM_CTX, "sample_file": str(sample_path), "variant": args.variant},
     ):
         records = []
         start_time = time.time()
+        prompt_version = _prompt_version_for(args.construct, args.variant)
         for i, row in sample.iterrows():
             full_context = context_by_paragraph.get(row["paragraph_id"])
             context = _ablate(full_context, args.variant) if full_context else None
-            parsed = _score_one(args.model, row["text_to_classify"], context, _prompt_version_for(args.variant))
+            parsed = _score_one(args.model, row["text_to_classify"], context, prompt_version, spec)
             records.append({
                 "paragraph_id": row["paragraph_id"],
                 "state": row["state"],
@@ -135,7 +166,7 @@ def run_sample_file(args, data_root: str) -> None:
                 "date": row["date"],
                 "affiliation": row["affiliation"],
                 "content": row["text_to_classify"],
-                "impolite": parsed["impolite"],
+                label_field: parsed[label_field],
                 "reason": parsed["reason"],
                 "model_name": args.model,
                 "variant": args.variant,
@@ -149,7 +180,7 @@ def run_sample_file(args, data_root: str) -> None:
 
         total_elapsed = time.time() - start_time
         predictions = pd.DataFrame(records)
-        n_unparsed = predictions["impolite"].isna().sum()
+        n_unparsed = predictions[label_field].isna().sum()
         print(f"Scored {len(predictions):,} paragraphs in {total_elapsed / 60:.1f} min "
               f"({total_elapsed / len(predictions):.1f}s/paragraph avg); "
               f"{n_unparsed} unparseable responses")
@@ -161,10 +192,13 @@ def run_sample_file(args, data_root: str) -> None:
 
 
 def run_full_state(args, data_root: str) -> None:
+    spec = CONSTRUCTS[args.construct]
+    mod, label_field = spec["module"], spec["label_field"]
+
     scope = args.state or "all"
     print(f"Building classification pool (scope={scope})...")
-    pool = build_classification_pool(data_root, verbose=False)
-    position_index = build_position_index(pool.merged) if args.variant != "baseline" else None
+    pool = mod.build_classification_pool(data_root, verbose=False)
+    position_index = mod.build_position_index(pool.merged) if args.variant != "baseline" else None
 
     rows = pool.dedup if not args.state else pool.dedup[pool.dedup["state"] == args.state]
     rows = rows.copy()
@@ -173,7 +207,7 @@ def run_full_state(args, data_root: str) -> None:
     print(f"{len(rows):,} classifiable rows for scope={scope}")
 
     model_slug = args.model.replace(":", "-").replace(".", "-")
-    out_name = f"impoliteness_full_{scope}_{model_slug}_{args.variant}.csv"
+    out_name = f"{spec['file_prefix']}_full_{scope}_{model_slug}_{args.variant}.csv"
     out_path = Path(data_root) / "measurement" / out_name
 
     done_keys = set()
@@ -187,7 +221,7 @@ def run_full_state(args, data_root: str) -> None:
     print(f"{len(todo):,} rows remaining this run")
 
     columns = ["paragraph_id", "segment_idx", "state", "date", "affiliation", "content",
-               "impolite", "reason", "model_name", "variant"]
+               label_field, "reason", "model_name", "variant"]
     if not out_path.exists():
         pd.DataFrame(columns=columns).to_csv(out_path, index=False)
 
@@ -195,12 +229,12 @@ def run_full_state(args, data_root: str) -> None:
     progress_lock = threading.Lock()
     progress = {"n": 0}
     n_total = len(todo)
-    prompt_version = _prompt_version_for(args.variant)
+    prompt_version = _prompt_version_for(args.construct, args.variant)
 
     def score_and_write(row) -> None:
-        context = build_context(row, position_index) if position_index is not None else None
+        context = mod.build_context(row, position_index) if position_index is not None else None
         context = _ablate(context, args.variant) if context else None
-        parsed = _score_one(args.model, row["text_to_classify"], context, prompt_version)
+        parsed = _score_one(args.model, row["text_to_classify"], context, prompt_version, spec)
 
         record = pd.DataFrame([{
             "paragraph_id": row["paragraph_id"],
@@ -209,7 +243,7 @@ def run_full_state(args, data_root: str) -> None:
             "date": row["date"],
             "affiliation": row["affiliation"],
             "content": row["text_to_classify"],
-            "impolite": parsed["impolite"],
+            label_field: parsed[label_field],
             "reason": parsed["reason"],
             "model_name": args.model,
             "variant": args.variant,
@@ -231,7 +265,7 @@ def run_full_state(args, data_root: str) -> None:
         platform_label=args.platform_label,
         runtime="ollama",
         task_type="prediction",
-        experiment=f"impoliteness full-corpus (scope={scope}, variant={args.variant})",
+        experiment=f"{args.construct} full-corpus (scope={scope}, variant={args.variant})",
         model=args.model,
         n_items=n_total,
         seed=SEED,
@@ -260,6 +294,7 @@ def run_full_state(args, data_root: str) -> None:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, help="Ollama model tag, e.g. gemma4:12b")
+    parser.add_argument("--construct", choices=tuple(CONSTRUCTS), default="impoliteness")
     parser.add_argument("--variant", choices=VARIANTS, default="baseline")
     parser.add_argument(
         "--sample-file", default=None,
@@ -289,6 +324,13 @@ def main():
              "concurrency=2 with only ~20%% gain, a bigger-VRAM GPU may behave differently.",
     )
     args = parser.parse_args()
+
+    allowed_variants = CONSTRUCTS[args.construct]["variants"]
+    if args.variant not in allowed_variants:
+        parser.error(
+            f"--construct {args.construct} only supports --variant {allowed_variants} "
+            f"(got {args.variant!r})"
+        )
 
     data_root = os.environ.get("DATA_ROOT")
     if not data_root:
