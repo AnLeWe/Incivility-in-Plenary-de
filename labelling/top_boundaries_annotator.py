@@ -3,7 +3,8 @@ Small standalone Tkinter app for labeling every "pre" (presiding officer) speech
 contribution as TOP-opener / not-opener, to validate preprocessing/top_boundaries.py's
 rule-based detection at the level it actually operates on.
 
-Reads top_boundaries_annotation_input.csv (exported from analysis/exp.ipynb): one row
+Reads top_boundaries_annotation_input.csv (exported from
+measurement/top_change/top_boundaries_exploration.ipynb): one row
 per speech contribution -- consecutive "pre" paragraphs already joined upstream in the
 notebook, since a paragraph-position gap means another speaker's turn happened in
 between and a gap-free run is one continuous chair utterance.
@@ -450,6 +451,7 @@ class AnnotatorApp(tk.Tk):
 if __name__ == "__main__":
     if not INPUT_PATH.exists():
         raise SystemExit(
-            f"{INPUT_PATH} not found -- export the contributions CSV from exp.ipynb first."
+            f"{INPUT_PATH} not found -- export the contributions CSV from "
+            "measurement/top_change/top_boundaries_exploration.ipynb first."
         )
     AnnotatorApp().mainloop()
