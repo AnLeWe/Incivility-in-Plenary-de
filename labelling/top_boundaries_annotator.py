@@ -19,6 +19,7 @@ Run: norm_env/bin/python labelling/top_boundaries_annotator.py
 """
 
 import csv
+import os
 import webbrowser
 from pathlib import Path
 
@@ -26,9 +27,9 @@ import pandas as pd
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-APP_DIR = Path(__file__).resolve().parent
-INPUT_PATH = APP_DIR / "top_boundaries_annotation_input.csv"
-GOLD_PATH = APP_DIR / "top_boundaries_opener_labels.csv"
+DATA_DIR = Path(os.environ["DATA_ROOT"]) / "labelling"
+INPUT_PATH = DATA_DIR / "top_boundaries_annotation_input.csv"
+GOLD_PATH = DATA_DIR / "top_boundaries_opener_labels.csv"
 GOLD_FIELDS = ["protocol_id", "state", "date", "url", "start_pos", "end_pos", "is_opener", "type", "sponsor", "topic", "notes"]
 
 

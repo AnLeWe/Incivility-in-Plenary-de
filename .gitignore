@@ -20,6 +20,9 @@ data/
 labelling/annotations_output.csv
 labelling/.annotator_id
 labelling/.annotator_positions.json
+labelling/top_boundaries_annotation_input.csv
+labelling/top_boundaries_opener_labels.csv
+labelling/*.bak_*
 
 # Local machine config
 .env
