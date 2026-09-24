@@ -17,8 +17,10 @@ so a full rewrite each time is simplest and keeps it always consistent). Restart
 the app reloads existing labels and resumes at the first unlabeled contribution.
 
 Run: norm_env/bin/python labelling/top_boundaries_annotator.py
+Or, for the v2 sample: norm_env/bin/python labelling/top_boundaries_annotator.py --v2
 """
 
+import argparse
 import csv
 import webbrowser
 from pathlib import Path
@@ -27,9 +29,13 @@ import pandas as pd
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+_parser = argparse.ArgumentParser()
+_parser.add_argument("--v2", action="store_true", help="annotate the v2 sample instead of v1")
+_suffix = "_v2" if _parser.parse_args().v2 else ""
+
 APP_DIR = Path(__file__).resolve().parent
-INPUT_PATH = APP_DIR / "top_boundaries_annotation_input.csv"
-GOLD_PATH = APP_DIR / "top_boundaries_opener_labels.csv"
+INPUT_PATH = APP_DIR / f"top_boundaries_annotation_input{_suffix}.csv"
+GOLD_PATH = APP_DIR / f"top_boundaries_opener_labels{_suffix}.csv"
 GOLD_FIELDS = ["protocol_id", "state", "date", "url", "start_pos", "end_pos", "is_opener", "type", "sponsor", "topic", "notes"]
 
 
