@@ -34,20 +34,69 @@ detector's own intent: a "rufe...auf" / "komme zu" / bare-heading phrasing,
 *provided* that paragraph itself carries the identifying number/title).
 Everything else is False.
 
-Two recurring artifacts are NOT separate openers, even though they can look like
-one at a glance:
+**(2026-09, revised) Metadata-recording and `is_opener` are two independent
+decisions — don't infer one from the other.** Earlier guidance said Type/
+Sponsor/Topic "live on the opener row only," implying a row could only carry
+metadata if it was also `True`. That's wrong in both directions. What's
+actually true:
 
-- **Bracketed reprint / repeated citation.** The presiding officer's line already
-  names the TOP; the very next `pre` paragraph is the official record reprinting
-  the same citation (often in `[...]` brackets, sometimes not, depending on
-  state). That reprint gets `is_opener=False`, and its Type/Sponsor/Topic are
-  left **blank** — they live on the true opener row only. Leaving them filled on
-  both rows double-counts that TOP in any later topic-frequency tally.
-- **Split announcement sentence.** One spoken sentence gets split across two
-  consecutive `pre` rows (Berlin's "Ich rufe auf" / "lfd. Nr. N:", including the
-  OCR variant "Ifd. Nr."). Only the fragment that actually identifies *which*
-  item is being opened (usually the one carrying the number) is True; the
-  content-free lead-in fragment is False.
+- `is_opener` stays exactly what it always was: a deliberate judgment call
+  about whether a genuinely new procedural/thematic unit starts *at this
+  row*, per "anchor to content, not phrase" above. Nothing about metadata
+  changes that test.
+- `type`/`sponsor`/`topic` can be recorded on **any** row where that specific
+  piece is actually printed in the text — whether or not that row is also
+  `is_opener=True`. A Beschlussempfehlung's citation line, or a sponsor line
+  that trails a title, often just adds detail to a TOP that already opened
+  elsewhere; recording its type/sponsor there is about not losing recoverable
+  information, not a claim that the row opens anything.
+- Critically: **`type`/`sponsor` being filled on a row is not evidence that
+  the row should be `is_opener=True`.** Do not reverse-infer one from the
+  other. (A 2026-09 pass briefly did exactly this — flipped ~83 rows to
+  `True` solely because they had `type`/`sponsor` filled — and had to revert
+  all of them. The two fields answer different questions.)
+
+Within that, when a TOP's citation genuinely spans multiple rows and more
+than one of those rows independently deserves `is_opener=True` in its own
+right (each is itself the anchor for a distinct title, sponsor, or
+sub-document — not merely "has some metadata"), each gets its own `True` and
+records only what it actually contains, rather than everything being
+force-merged onto one row (e.g. `be_19_54/588`: title + topic is `True`;
+`/589`, a distinct following citation "Antrag der AfD-Fraktion, Drucksache...",
+is independently judged to open nothing new here and — depending on the
+specific case — may or may not also be `True`; jointly-cited documents like a
+Gesetzentwurf and its accompanying Bericht der Landesregierung can likewise
+each be their own opener when each is independently a distinct citable
+document, per your own read of the specific case).
+
+One exception still applies:
+
+- **True duplicate reprint.** When a row is a *word-for-word* repeat of a
+  citation already fully captured on the row before it (the classic bracketed
+  official-record reprint of what the presiding officer just said aloud, with
+  no new piece at all) — that reprint stays `is_opener=False`. Its
+  content, if any is worth keeping, can still be recorded via `type`/
+  `sponsor` per the point above; the row just isn't itself an opener.
+
+**Pitfall: "Abstimmung" and "Artikel N" calls are (usually) not openers.**
+A vote-taking announcement ("Wir kommen zur Abstimmung...") or an
+article-by-article call during a bill's reading ("Ich rufe auf Artikel 1...")
+almost always sits *inside* an already-open TOP — the real, telling opener
+came earlier ("ich rufe auf" for the TOP itself), and these are just
+procedural steps through that same already-identified item, not new units.
+Don't mark them `True` on the assumption that "ich rufe auf" phrasing always
+signals an opener — the phrase recurs for purely mechanical sub-steps too.
+This is a note for prompting/self-review, not a claim that either of us has
+been getting it wrong in bulk — just a recurring trap worth naming.
+
+**"Persönliche Bemerkung"/"persönliche Erklärung" are never openers.** A
+procedural device (e.g. §89 GO in `mv_4_74/1534`, §112 in `by_18_106/1200`)
+letting an MP make a brief, time-limited statement to correct how their own
+words were represented by another speaker, or respond to a personal attack —
+not to reopen substantive debate on the matter at hand. Explicitly framed as
+happening "außerhalb der Tagesordnung" (outside the regular agenda) and never
+carries actual policy content, so it gets no opener regardless of how
+prominently it's announced.
 
 **Thematic unit vs. procedural TOP — they don't have to be 1:1.** A `top_seq`
 is a scheduling container (what's on the printed agenda as item N); a thematic
@@ -62,6 +111,12 @@ is a TOP-opener in the procedural sense:
   can be about a completely different policy area. Each question's chair
   announcement ("Ich bitte nun den Abgeordneten X, die Frage N zu stellen")
   gets its own opener flag.
+  **Anfrage vs. Zusatzfrage**: the Anfrage is the pre-submitted question that
+  opens the exchange; a Zusatzfrage is a live follow-up (often from a
+  *different* MP than the original asker) probing the same answer just given.
+  A Zusatzfrage stays on the Anfrage's subject by parliamentary rule, so it's
+  a continuation, not a new opener — same logic as a vote continuing the TOP
+  it belongs to, not starting a new one.
 - **Joint-TOP openers** ("Ich rufe die Punkte 7 bis 14 der Tagesordnung
   gemeinsam auf:" followed by "Punkt 7:", "Punkt 8:", ...) — same logic, each
   "Punkt N:" sub-item is its own thematic unit and gets its own opener flag,
@@ -70,6 +125,54 @@ is a TOP-opener in the procedural sense:
 This is a deliberate, known mismatch between annotation granularity (thematic)
 and the current rule-based detector's granularity (procedural TOP only) — not
 a labeling bug, and not something the detector needs to be able to reproduce.
+
+### Sitzungseröffnung gets its own opener (2026-09)
+
+Same broadening as Fragestunde/joint-TOP above, at the other end of the
+protocol: the session-opening remark (greeting, "Ich eröffne die N. Sitzung...",
+roll-call/quorum statement) is a genuine thematic unit in its own right — it
+already gets `topic=Prozedural` by convention — so it now also gets
+`is_opener=True`, even though `top_boundaries.py` never tried to detect it
+(it only looks for Tagesordnungspunkt-announcement cues, not session-opening
+cues). This is a scope broadening for a future topic-*change* classifier that
+cares about "does a new unit start here" in general, not a claim that the
+rule-based detector is wrong to miss it.
+
+Applied by finding, per protocol, the first `pre` row (before the first
+already-True row) matching an Eröffnung cue — not literally "row 1," since the
+opening remark is sometimes split across several consecutive un-joined `pre`
+rows (a bare "Guten Morgen!" greeting, then a separate row with the actual
+"Ich eröffne..." declaration) and only the row that actually names/declares
+the session gets the flag, per the anchor-to-content principle. Cue-matching
+caught most state phrasings directly ("eröffne die X. Sitzung", "Die Sitzung
+ist eröffnet") but also needed broadening to states that never say "eröffne"
+at all and instead use "begrüße Sie zur X. Sitzung" or "heiße Sie willkommen
+zu unserer heutigen, X. Sitzung" (NW, HE, RP, BB) — same function, different
+verb.
+
+Known exceptions, left as `is_opener=False` deliberately:
+
+- **`sh_15_66`, `sh_19_62`**: this transcript's captured `pre` paragraphs
+  start mid-debate (granting the floor for an already-in-progress
+  Dringlichkeit/Geschäftsordnung item) — no Eröffnung was captured for these
+  two at all. Don't force one; the absence is a real gap in what got sampled,
+  not a missed cue.
+- **`sh_18_16`**: same situation for the protocol's actual start, but a
+  *mid-protocol* "Ich eröffne wieder die Sitzung" (resuming after a recess)
+  appears later on and got flagged instead — a legitimate instance of the same
+  category (a session (re-)opening), just not the transcript's first moment.
+- **`th_5_2`**: never self-references its own session number or says
+  "eröffne" anywhere in the preamble (pure "Guten Morgen... Willkommen"
+  greeting) — a blind cue-match would have false-positived on an unrelated
+  "2. Sitzung" mention (the Ältestenrat's own committee meeting, several rows
+  later). Assigned to row 1 by the same greeting-is-the-opener logic as
+  everywhere else, but this one needed a manual override rather than a clean
+  regex hit — worth rechecking if this pattern shows up again elsewhere.
+- **`bb_4_14`**: pre-existing `is_opener=True` at row 1, left untouched, but
+  its content ("Wir haben gestern die 14. Sitzung unterbrochen und setzen sie
+  heute mit der weiteren Behandlung fort") is a continuation of an
+  *interrupted* sitting, not a fresh Eröffnung — flagged here in case it's
+  worth revisiting later, not fixed now.
 
 ### Adjacent double-openers: bug vs. legitimate pattern
 
@@ -138,6 +241,19 @@ paragraphs), not just the presiding officer's own text. Design question for
 whenever that classifier actually gets built, not something the annotation
 itself needs to resolve now.
 
+**Hardest known case: `hh_16_74`'s Fragestunde.** All 8 question-openers are
+correctly labeled (verified 2026-09), but the chair's announcement carries
+*zero* subject-matter content at all — "Die erste Frage geht an den
+Abgeordneten Herrn Hackbusch," "Ich rufe dann die dritte Frage von Herrn Hesse
+auf." Just an asker's name and an ordinal; contrast with HB ("Die neunte
+Anfrage befasst sich mit dem Thema...") or BW ("Mündliche Anfrage des Abg. X –
+TITLE"), where the `pre` paragraph names the subject itself. Here the topic
+was only recoverable by reading past the announcement into the MP's own
+spoken question. A classifier trained only on `pre`-paragraph text has no
+lexical signal to work with here at all — this protocol is the clearest
+illustration of why the sub-unit-boundary problem needs surrounding-content
+features, not just a better `pre`-paragraph model.
+
 ### Cross-context variation & the limits of surface-pattern detection
 
 TOP-announcement conventions differ by debate type (a regular TOP opener looks
@@ -189,6 +305,44 @@ alone is only for a bare citation *line* naming one specific nomination
 document (e.g. inside a list of several competing Wahlvorschläge), not for the
 TOP's own canonical row.
 
+**Structural/format tags on container headings** work the same way as any
+other non-opener row carrying metadata (see the `is_opener` section above —
+recording and opener-status are independent). A bare `Fragestunde`/
+`Aktuelle Stunde`/`Aktuelle Debatte` heading line stays `is_opener=False` (it
+names a *format*, not a citable document), but still gets that word as its
+own `type` value so the format is findable/filterable (e.g. `nw_13_149/19`:
+`type=Aktuelle Stunde`, `is_opener=False`, because the actual opener with
+content is a few rows later). `bb_7_63/1164` + `/1171` is the same pattern at
+document level: `/1164` is the opener (`type=Gesetzentwurf; Bericht`, the real
+topic), `/1171` records `type=Bericht` for its own Bericht der Landesregierung
+citation while staying `is_opener=False` and topic-blank — it's the same
+subject as `/1164`, just not independently an opener in its own right. Do
+**not** treat a filled `type`/`sponsor` as license to flip a row to `True` —
+see the explicit warning against that inference above.
+
+`Dringlichkeitsantrag` (urgent motion — filed under expedited rules, skips
+normal committee scheduling) gets its own type value, same tier as the other
+procedurally-distinct motion subtypes (`Änderungsantrag`, `Entschließungsantrag`,
+`Alternativantrag`) — not folded into plain `Antrag`. Watch for the phrasing
+variant **"Dringlicher Antrag"** (adjective+noun, seen in HE) as well as the
+compound noun "Dringlichkeitsantrag" — same instrument, both map to this type
+value. (A 2026-09 pass retroactively reclassified 18 rows across
+`by`/`hb`/`mv`/`he` that had one of these two phrasings in their citation text
+but were typed `Antrag` before this distinction was drawn.)
+
+`Einzelplan` — a Haushaltsgesetz's individual departmental budget chapter
+("Einzelplan 05 – Inneres und Sport –"). Gets its own opener with the
+department's substantive `topic` (see the Haushalt/Einzelplan note under
+`topic` below) — `type=Einzelplan` records that this row's specific citable
+form is a budget chapter heading, same spirit as tagging `Fragestunde`/
+`Aktuelle Stunde` as a format rather than leaving `type` to imply an
+Antrag/Gesetzentwurf that isn't actually there.
+
+`Übersicht` — a compiled list/overview document cited as its own instrument
+(e.g. `bb_7_63/1339`, an `Übersicht` of petitions from the Petitionsausschuss)
+— distinct from `Beschlussempfehlung`/`Bericht`, which are the committee's own
+recommendation/report rather than a raw compiled list.
+
 ## `sponsor`
 
 - Multi-party sponsors are joined with "; ", in **source-text order** — not
@@ -211,7 +365,13 @@ TOP's own canonical row.
 
 The conventions above are about how to *label* the raw, unjoined per-paragraph
 data — keeping every `pre` fragment as its own row lets you inspect and verify
-each one individually. But for the **final TOP-level analysis/classification**
+each one individually. This matters more than ever now that metadata is
+recorded per-row rather than merged onto one canonical line (see the 2026-09
+revision under `is_opener`): a single TOP can legitimately be five or six
+`True` rows in a row, each with a sliver of the total citation. That's the
+*annotation* granularity, deliberately kept fine so nothing gets lost or
+force-merged during labeling — it is not the shape of the final dataset. For
+the **final TOP-level analysis/classification**
 (building the actual per-TOP dataset used downstream, as opposed to this gold
 label file), the consecutive `pre` paragraphs that make up one TOP's opening —
 the announcement, its bracketed/non-bracketed citation reprint, and any
@@ -252,6 +412,23 @@ surface keyword, or institutional bundling (a Rechnungshof audit report, a
 Rechtsausschuss report, or a Fraktion's motion are containers, not topics; the
 question is always "what is this actually about").
 
+**Pitfall: "Integration" is a false-friend word — it means two unrelated
+things in Landtag content, and neither is its own topic.** A retired
+`Integration` bucket (2026-09 cleanup) turned out to conflate immigrant/
+migrant integration policy (→ `Migration und Asyl`; e.g. `rp_17_10/25`'s
+residency-requirement-for-integration Antrag, `rp_15_44/1229`'s
+Migration-und-Integration Enquete-Kommission) with disability-inclusion
+content (→ `Inklusion`; e.g. `he_19_147/1131`'s Bundesteilhabegesetz
+implementation, `bw_16_31/1907`'s disabled-employment report — both
+surfaced by committees literally named "Ausschuss für Soziales und
+Integration," where "Integration" meant disability participation, not
+migration). Don't classify anything as bare "Integration" — determine which
+of the two it actually is and use the specific topic. Same caution applies
+to `Soziales` (also retired): it scattered across `Arbeit und Beruf`
+(Mindestlohn/Tariftreue content), `Sozialleistungen` (Hartz-IV/KdU content),
+and other specific buckets — it was never a real category of its own, just
+an unresolved catch-all.
+
 A `topic` can legitimately sit on a row with no `is_opener` anywhere near it
 and no `pre` paragraph announcing a change — this happens when the actual
 subject drifts mid-debate purely through what speakers say, with no chair
@@ -262,6 +439,34 @@ missing opener in these cases — the absence of one is correct, not a gap to
 fill; see the "implicit TOP change" case already noted under Cross-context
 variation above.
 
+- **Haushalt Einzelplan (departmental budget chapter) walkthroughs each get
+  their own opener, but the topic is `Haushalt` for every one of them — settled
+  2026-09, after two reversals.** *Each* Einzelplan chapter still gets its own
+  `is_opener=True` row (`type=Einzelplan`) — that part survives from the
+  in-between version of this rule: a chapter's floor debate is a genuine,
+  self-contained discussion (real speeches, real disagreement, sometimes
+  hundreds of paragraphs), not a mechanical vote tally, so it isn't collapsed
+  into the one overarching Haushaltsgesetz opener. What changed back is the
+  `topic`: it's `Haushalt` on every Einzelplan row, not the department's
+  substantive policy area (so "Einzelplan 05 – Inneres und Sport –" is
+  `topic=Haushalt`, not `Innere Sicherheit`) — structurally, every Einzelplan
+  chapter is still part of the same parent Haushalt TOP regardless of which
+  department it covers, and department-specific topics were fragmenting what
+  is analytically one recurring event (the annual budget walkthrough) across
+  a dozen unrelated-looking topic labels. The overarching Haushaltsgesetz row
+  itself is also `topic=Haushalt` (`type=Gesetzentwurf; Beschlussempfehlung;
+  Bericht`, for the bill-framing/general-debate portion). Any genuinely
+  separate motion/bill interspersed between Einzelplan chapters for scheduling
+  convenience (its own Drucksache, unrelated subject — e.g. a Dringlicher
+  Entschließungsantrag debated jointly with a specific Einzelplan) still gets
+  its own opener with its own real topic, same as before — it's only the
+  Einzelplan chapter rows themselves that are uniformly `Haushalt`.
+  `he_18_26`'s 12 Einzelplan rows, `be_17_15`'s 11, and `v1`'s `bb_4_14` (6)
+  and `sh_18_16` (13) were all corrected to this rule 2026-09 — the v1 pair
+  had every Einzelplan chapter sitting at `is_opener=False` (a different,
+  older inconsistency, since v1 predates the per-chapter-opener rule
+  entirely), so those were flipped to `True` at the same time as getting
+  `topic=Haushalt`.
 - Merge near-duplicate categories only when the content is genuinely
   indistinguishable (e.g. Recht → Justiz, Wissenschaft → Hochschulen were pure
   naming leftovers). Keep categories separate even at low volume when they
@@ -286,6 +491,19 @@ variation above.
     Große Anfrage spanning both road resurfacing and building-condition
     reports, or a general "how large is the infrastructure investment
     backlog" question) that doesn't reduce to one specific asset type.
+  - **`Landesentwicklung` (new, 2026-09) — state-wide/regional spatial
+    planning, distinct from `Stadtentwicklung`'s city/municipal scale.**
+    "Stadtentwicklung" literally means city development — it fits a
+    Städtebauförderung (city-building funding) Große Anfrage fine
+    (`ni_14_107/1076`), but not content about the *ländlicher Raum* (rural
+    area/countryside) specifically, which was wrongly forced into
+    `Stadtentwicklung` before this split (`ni_14_107/17` — an Aktuelle-Stunde
+    theme titled "Ministerpräsident Gabriel erdrückt den ländlichen Raum";
+    `ni_14_107/660` — an Antrag titled "Erfolgreiche Politik für den
+    ländlichen Raum fortsetzen"). Use `Landesentwicklung` for rural/regional
+    development, `Stadtentwicklung` for city/municipal-scale content — the
+    axis is urban vs. rural/state-wide scale, not which specific instrument
+    or committee is involved.
   - **`Infrastruktur` retired.** It was a surface-level noun duplicating
     whatever the actual asset was: pure road content moved to `Verkehr`,
     pure building content and genuinely cross-sector/general content moved
@@ -336,9 +554,37 @@ variation above.
 - `Korruption und Amtsmissbrauch`: broader than bribery-type corruption alone
   — also covers conflict-of-interest/office-abuse oversight (officials'
   company board memberships, state shareholdings in companies, anti-corruption
-  registries and offices). Don't put a Parlamentarisches Kontrollgremium/
+  registries and offices, Minister-Karenzzeit/cooling-off regulation like
+  `be_17_15/1164`). Don't put a Parlamentarisches Kontrollgremium/
   Kontrollkommission law here just because it's an oversight body — those are
   intelligence-service oversight specifically and belong in Verfassungsschutz.
+- `Parlamentarische Kontrolle` (new, 2026-09): the parliament *establishing or
+  running an investigative/oversight body itself* — Untersuchungsausschuss
+  formation and reports (`bb_7_63/445`: setting up an inquiry into the BER
+  airport's cost/schedule overruns; `bb_3_100/12` and `/330`: inquiry reports
+  into the LEG state-housing-company scandal and the Chipfabrik
+  Frankfurt/Oder investment scandal) — regardless of whether the underlying
+  subject under investigation is corruption, mismanagement, or something
+  else entirely. The lever here is "parliament is exercising its oversight
+  function," not the substance of what's being investigated. Contrast with
+  `Korruption und Amtsmissbrauch`, which is about substantive corrupt
+  conduct or conflict-of-interest policy itself — a Untersuchungsausschuss
+  into a genuine bribery scandal would still be `Parlamentarische Kontrolle`
+  (it's an inquiry-mechanism topic), not `Korruption und Amtsmissbrauch`,
+  unless the row itself is about the anti-corruption policy substance rather
+  than the inquiry mechanism. (`bb_3_100/12` and `/330` were originally typed
+  `Korruption und Amtsmissbrauch` before this distinction was drawn —
+  reclassified.)
+- `Außenpolitik` (new, 2026-09): foreign-policy/international-relations
+  content a state parliament has no formal competency over but still debates
+  — solidarity resolutions, symbolic condemnations. Example: `by_18_106`'s
+  three jointly-debated Dringlichkeitsanträge on the Russian invasion of
+  Ukraine (`/606` SPD, `/608` FDP, `/610` FREIE WÄHLER/CSU joint) — "Solidarität
+  mit der Ukraine", "Putins Aggression Einhalt gebieten", "Europäische
+  Friedensordnung bewahren". Don't stretch `Verfassung` or `Katastrophenschutz`
+  to cover this — neither fits (no domestic constitutional or disaster-response
+  content), and it's a distinct-enough recurring category to warrant its own
+  bucket rather than force-fitting.
 - `??` is a deliberate self-marker for "not yet decided" — not a real topic.
   Sweep these periodically rather than leaving them.
 - `Prozedural` is the catch-all for content with no policy substance at all:
