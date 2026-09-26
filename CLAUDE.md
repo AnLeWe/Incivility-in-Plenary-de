@@ -119,8 +119,10 @@ files you want (e.g. `norm_env/bin/python -m pytest measurement/test_impolitenes
 regenerated from actual imports, not hand-maintained. A git hook (`.githooks/pre-commit`) runs
 `scripts/update_requirements.py` on any commit touching `src/`, `labelling/`, `measurement/`,
 `preprocessing/`, or `utils/` `.py`/`.ipynb` files, and re-stages both results. The script scans
-those dirs for `requirements.txt` while excluding the three topic-modeling files listed above,
-and scans only those three files for `requirements-topic-modeling.txt`.
+those dirs and their subfolders (e.g. `measurement/top_change/`) for `requirements.txt`, while
+excluding the three topic-modeling files listed above and any `run_history/` folder (executed
+snapshots of old runs, not meant to be rerun as-is), and scans only those three files for
+`requirements-topic-modeling.txt`.
 One-time setup per clone: `uv tool install pipreqs` and `git config core.hooksPath .githooks`.
 `scripts/update_requirements.py` has an `ALWAYS_INCLUDE` allowlist for packages pandas needs
 as I/O engines (e.g. `openpyxl` for `pd.read_excel`, `pyarrow` for `pd.read_parquet`) that

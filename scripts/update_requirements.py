@@ -4,8 +4,9 @@
 Two virtualenvs, two requirements files:
 
 - `requirements.txt` — the project's main `norm_env` (Python 3.14). Built from imports in
-  src/, labelling/, preprocessing/, utils/ and measurement/ *except* the topic-modeling
-  files listed in TOPIC_MODELING_FILES.
+  src/, labelling/, preprocessing/, utils/ and measurement/, including their subfolders
+  (e.g. measurement/top_change/), *except* the topic-modeling files listed in
+  TOPIC_MODELING_FILES and the snapshots in SKIP_DIRS.
 - `requirements-topic-modeling.txt` — the dedicated `topic_modeling_env` (Python 3.11),
   which exists only because `gensim` cannot be installed on Python 3.14. Built from
   imports in TOPIC_MODELING_FILES only.
@@ -34,6 +35,11 @@ TOPIC_MODELING_FILES = [
     "measurement/test_topic_modeling_lib.py",
 ]
 
+# Folder names skipped anywhere below SCAN_DIRS. run_history/ holds executed snapshots of
+# old notebook runs: they document past dependencies (incl. gensim-based topic modeling,
+# which can't install on norm_env's Python 3.14) and aren't meant to be rerun as-is.
+SKIP_DIRS = {"run_history", ".ipynb_checkpoints", "__pycache__"}
+
 REQUIREMENTS = REPO_ROOT / "requirements.txt"
 TOPIC_MODELING_REQUIREMENTS = REPO_ROOT / "requirements-topic-modeling.txt"
 
@@ -47,9 +53,13 @@ TOPIC_MODELING_ALWAYS_INCLUDE = {"pyarrow"}
 
 
 def _source_files(scan_dir: Path) -> list[Path]:
-    """Python sources in a directory, skipping empty stub notebooks (invalid JSON)."""
-    files = list(scan_dir.glob("*.py")) + list(scan_dir.glob("*.ipynb"))
-    return sorted(f for f in files if f.stat().st_size > 0)
+    """Python sources in a directory and its subfolders (except SKIP_DIRS), skipping empty
+    stub notebooks (invalid JSON)."""
+    files = list(scan_dir.rglob("*.py")) + list(scan_dir.rglob("*.ipynb"))
+    return sorted(
+        f for f in files
+        if f.stat().st_size > 0 and not SKIP_DIRS & set(f.relative_to(scan_dir).parts[:-1])
+    )
 
 
 def _run_pipreqs(rel_paths: list[str], out_path: Path, always_include: set[str]) -> int:
@@ -101,7 +111,7 @@ def main() -> int:
         if not src_dir.is_dir():
             continue
         for f in _source_files(src_dir):
-            rel = f"{scan_dir}/{f.name}"
+            rel = f.relative_to(REPO_ROOT).as_posix()
             if rel not in TOPIC_MODELING_FILES:
                 norm_env_files.append(rel)
 
