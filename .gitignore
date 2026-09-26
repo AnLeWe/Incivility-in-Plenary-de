@@ -46,3 +46,7 @@ docs/superpowers/specs/
 # Paywalled article saved locally
 paper/Ausgelacht, beleidigt, unterbrochen_ Wer im Berliner Abgeordnetenhaus am häufigsten dazwischenruft.html
 paper/Ausgelacht, beleidigt, unterbrochen_ Wer im Berliner Abgeordnetenhaus am häufigsten dazwischenruft_files/
+
+# Quarto HTML render of the top_change plan (the .md is the source)
+measurement/top_change/plan-nested-oof-error-analysis.html
+measurement/top_change/plan-nested-oof-error-analysis_files/
