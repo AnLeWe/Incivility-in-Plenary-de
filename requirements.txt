@@ -1,7 +1,9 @@
 beautifulsoup4
 defusedxml
+joblib
 krippendorff
 lxml
+matplotlib
 numpy
 ollama
 openpyxl
@@ -11,6 +13,8 @@ psutil
 pyarrow
 python-dotenv
 requests
+scikit_learn
 streamlit
+torch
 tqdm
 transformers
