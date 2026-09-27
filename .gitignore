@@ -51,3 +51,7 @@ paper/Ausgelacht, beleidigt, unterbrochen_ Wer im Berliner Abgeordnetenhaus am h
 # Quarto HTML render of the top_change plan (the .md is the source)
 measurement/top_change/plan-nested-oof-error-analysis.html
 measurement/top_change/plan-nested-oof-error-analysis_files/
+
+# Third-party dataset documentation, local only (not ours to redistribute)
+codebook/*.pdf
+codebook/*.png

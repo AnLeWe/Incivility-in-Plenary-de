@@ -21,7 +21,7 @@ and computational text analysis.
 │                           TOP-opener classifier (measurement/top_change/)
 ├── analysis/               R scripts and Quarto documents for statistical analysis
 ├── utils/                  Shared project-wide constants (e.g. the color scheme)
-├── codebook/               Annotation codebooks and dataset documentation
+├── codebook/               Annotation codebooks; dataset documentation PDFs are local only
 ├── references/             Project bibliography (references.bib)
 ├── figures/                Output plots and tables
 └── paper/                  Manuscript drafts
@@ -44,9 +44,9 @@ mandates; coverage 2000–2025. Key files, in
 - `stateparl_v3_protocols.parquet` — session metadata
 - `stateparl_v3_mandates.parquet` — speaker/mandate crosswalk
 
-Codebook: `codebook/StateParl_Documentation_v3-0-0.pdf`. Legacy v2
-(2025, doi.org/10.7802/2854) is CSV-based and no longer used by the
-pipeline.
+Codebook: `codebook/StateParl_Documentation_v3-0-0.pdf` (local only, not
+in git; download it from the DOI above). Legacy v2 (2025,
+doi.org/10.7802/2854) is CSV-based and no longer used by the pipeline.
 
 - `DATA_ROOT/labelling/annotations_input.csv` — 2021 speech paragraphs
 - `DATA_ROOT/labelling/annotations_input_2018.csv` — 2018 speech
