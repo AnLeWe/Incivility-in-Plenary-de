@@ -55,3 +55,10 @@ measurement/top_change/plan-nested-oof-error-analysis_files/
 # Third-party dataset documentation, local only (not ours to redistribute)
 codebook/*.pdf
 codebook/*.png
+
+# Local-only: other people's papers, private notes, plans, unused stub
+paper/*.pdf
+docs/compute-capacities.md
+analysis/topic_analysis_plan.md
+analysis/nsc_ml_extraction.ipynb
+measurement/top_change/plan-nested-oof-error-analysis.md
