@@ -163,13 +163,14 @@ Open `Incivility-in-Plenary-de.Rproj` in RStudio. Packages: `tidyverse`,
 
 ## Annotation tools
 
-### Civility annotation
+### Streamlit annotator (exploratory)
 
-A Streamlit prototype in `labelling/` for manual coding of StateParl v3
-paragraphs on three civility dimensions (politeness, moral civility,
-justificatory civility) plus interruption type. It is a test tool,
-separate from the annotation setup for the actual study. Each annotator
-gets a persistent local ID stored in `labelling/.annotator_id`.
+An exploratory Streamlit app in `labelling/` for manual coding of
+StateParl v3 paragraphs on three civility dimensions (politeness, moral
+civility, justificatory civility) plus interruption type. It was a test
+and will not be reused. It is separate from the annotation setup for the
+actual study. Each annotator gets a persistent local ID stored in
+`labelling/.annotator_id`.
 
 ``` bash
 norm_env/bin/streamlit run labelling/annotator_app.py
@@ -180,8 +181,8 @@ in git). The app resumes from the last coded position on restart and
 supports switching between datasets (2010 / 2018 / 2021) and
 Bundesländer.
 
-See `labelling/civility_annotator.md` for requirements, input data,
-label definitions and the output format.
+See `labelling/streamlit_annotator_exploratory.md` for requirements,
+input data, label definitions and the output format.
 
 ### TOP-opener annotation
 

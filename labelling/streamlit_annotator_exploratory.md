@@ -1,7 +1,7 @@
-# Civility annotator (Streamlit prototype)
+# Streamlit annotator (exploratory)
 
-`labelling/annotator_app.py` is a test tool for hand-coding StateParl paragraphs on three civility
-dimensions plus interruption type. It is a prototype. The annotation setup for the actual study
+`labelling/annotator_app.py` is an exploratory test tool for hand-coding StateParl paragraphs on three civility
+dimensions plus interruption type. It will not be reused. The annotation setup for the actual study
 (Label Studio, codebook) is being built separately, in the `incivility_annotation` project, and does
 not use this app or its output.
 
