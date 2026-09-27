@@ -1,6 +1,8 @@
 """Train the notebook's BERT cell (52d5f001) in a fresh process: executes the notebook's own
-data-preparation and fold cells, then the BERT cell source unchanged. Writes
-bert_oof_checkpoint.pkl next to the notebook, which the notebook's BERT cell then loads."""
+data-preparation and fold cells, then the BERT cell source unchanged. The cell trains every
+variant in BERT_VARIANTS whose checkpoint is missing or outdated (block only, block + context)
+and writes bert_oof_checkpoint_<variant>.pkl next to the notebook, which the notebook's BERT
+cell then loads."""
 import json, os, pickle, sys
 from pathlib import Path
 import numpy as np, pandas as pd, matplotlib

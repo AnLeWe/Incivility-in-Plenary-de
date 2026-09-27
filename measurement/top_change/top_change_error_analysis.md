@@ -14,10 +14,57 @@ Each reviewed case gets one of these verdicts:
 - `ambiguous`: the annotation conventions don't settle the case. Resolve it in
   `labelling/top_boundaries_annotation_conventions.md` first.
 
-## BERT (ModernGBERT_134M + neighbouring-block context; 2026-09-26)
+## BERT rerun: G0 (block only) and G1 (+ context), 2026-09-27
+
+Same bridged blocks, frozen outer folds and pre-fix labels as C and D. Both variants use the
+same procedure. Per outer fold the model trains on the training protocols minus a frozen
+~15% early-stopping slice (`es_holdout_k` in `fold_assignment.csv`: 9-10 protocols, 11-17% of
+rows, 10-19% of openers). The slice picks the epoch (patience 1, at most 5, best weights
+restored). The decision rule is cutoff 0 (no tuned threshold). No refit. Checkpoints
+`bert_oof_checkpoint_block.pkl` / `_context.pkl` carry the full config, the model revision
+and an input SHA-256. The configs were upgraded after training (verified; noted in the
+checkpoints). Notebook section "Fine-tuned German encoder".
+
+| | F1 | P | R | macro-F1 | MCC | FP | FN | question openers missed (of 226) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| C | 0.886 | 0.874 | 0.908 | 0.935 | 0.873 | 123 | 90 | 54 |
+| D | 0.881 | 0.879 | 0.892 | 0.932 | 0.867 | 117 | 105 | 71 |
+| **G0** | **0.922** | **0.945** | 0.906 | **0.956** | **0.914** | **49** | 91 | 63 |
+| G1 | 0.895 | 0.897 | 0.901 | 0.940 | 0.883 | 102 | 95 | 70 |
+
+- G0 is the best model. It beats the better of C and D in every fold (per-fold F1 +0.011 to
+  +0.060), mainly through precision (FPs 49 vs. 117-123). It also beats the superseded context
+  run below (0.917). So most of BERT's gain comes from the model, not from context. G0 is
+  input-matched to C and D, not procedure-matched.
+- What "context" means here: the previous and next block *in cv_pool*, i.e. other
+  presiding-officer contributions (the chair's neighbouring turns), not the speeches that
+  actually came before and after the block. The debate content in between is left out, so the
+  added segment is mostly unrelated procedural text: noise. A worse G1 is expected, and it says
+  nothing about whether real context (the surrounding speeches) would help.
+- Context (G1 − G0, paired per fold): F1 −0.038, −0.067, +0.002, −0.041, +0.009. G1 doubles the
+  FPs at every block length and misses more question openers. It fixes some question calls
+  (be_19_54 "Dann geht die nächste Frage an die AfD …", he_19_147 "Wir kommen zur Frage 1111")
+  and breaks others (mv_5_100 "Ich bitte jetzt den Abgeordneten … die Frage 17 zu stellen",
+  he_19_147 "Ich rufe die Frage 1110 auf"). It also adds FPs on NI follow-up calls and SL
+  Zusatzfragen.
+- Caveat on G1: it stopped at the first non-improving epoch in all five folds (best epochs 2, 1,
+  2, 2, 3). In folds 1, 3 and 5 its early-stopping slice scored higher than G0's, while its outer
+  folds were worse or only on par. The slice overstated G1, and this run can't separate the
+  effect of the context from the effect of stopping.
+- G0's most confident FPs are mostly known label/corpus problems (by_17_100 annex, hb_16_51/175,
+  th_4_67/1, rp_15_48/234). The model errors among them are SL follow-up calls ("Frage 5.",
+  "Frage 2.") and a scheduling remark (sh_16_104). Its most confident FNs are still Fragestunde
+  calls without subject (by_15_52 "Nächste Frage: Herr Kollege Schieder.", 6 of the top 12;
+  be_19_54; he_19_147), plus mv_6_4/501 (label error).
+- Shared by C, D and G0: 26 FPs, 53 FNs. By state, G0's errors fall most in TH, ST, MV and BB.
+  BE stays highest (31), almost all Fragestunde.
+- Fold 4 used all 5 epochs and was still improving.
+
+## BERT, first run (superseded by the rerun above; ModernGBERT_134M + neighbouring-block context; 2026-09-26)
 
 Same bridged blocks, frozen outer folds, pre-fix labels. Early stopping and threshold on
-frozen inner fold 1, trained in a fresh process (`run_bert_cv.py`); notebook cells 85-90.
+frozen inner fold 1, trained in a fresh process (`run_bert_cv.py`). The checkpoint
+`bert_oof_checkpoint.pkl` is no longer loaded by the notebook.
 
 | | F1 | P | R | MCC | PR-AUC | FP | FN | question openers missed (of 226) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -42,6 +89,26 @@ frozen inner fold 1, trained in a fresh process (`run_bert_cv.py`); notebook cel
   without knowing the state or the sequence position, so the Fragestunde mode feature
   should include the state.
 - Best epoch per fold 4, 2, 3, 2, 4. Folds 1 and 5 were still improving at epoch 4.
+
+Does the threshold tuned on inner fold 1 help on the outer folds? It is compared with the
+default cutoff 0, per fold (checked 2026-09-27):
+
+| fold | tuned thr | macro-F1 cutoff 0 → tuned | P | R | TP / FP changed by tuning |
+| --- | --- | --- | --- | --- | --- |
+| 1 | −0.79 | 0.959 → 0.950 | 0.898 → 0.870 | 0.960 → 0.960 | 0 / +6 |
+| 2 | 2.26 | 0.974 → 0.984 | 0.933 → 0.979 | 0.980 → 0.965 | −3 / −10 |
+| 3 | 2.14 | 0.963 → 0.962 | 0.926 → 0.946 | 0.942 → 0.919 | −4 / −4 |
+| 4 | 1.85 | 0.949 → 0.950 | 0.873 → 0.905 | 0.952 → 0.920 | −6 / −8 |
+| 5 | 0.61 | 0.927 → 0.918 | 0.959 → 0.957 | 0.798 → 0.773 | −5 / 0 |
+
+Only in fold 2 does the high cutoff do useful work: it removes 10 FPs for 3 true openers.
+In folds 3 and 4 it trades about one true opener per FP removed (neutral). In folds 1 and 5
+it goes the wrong way: fold 1's lowered cutoff adds 6 FPs and no true openers, and fold 5's
+raised cutoff loses 5 true openers and removes no FP. Over all folds: −18 TP, −16 FP, and mean
+macro-F1 0.954 (cutoff 0) vs. 0.953 (tuned), tuned better in 2 of 5 folds. The single-fold
+threshold doesn't carry over to the outer folds. The class-weighted model's default cutoff is
+as good and has no selection variance. So future BERT runs should use cutoff 0. The BERT
+numbers above are at the tuned threshold; at cutoff 0, CV F1 is 0.920 ± 0.032.
 
 ## Model comparison on nsc-bridged blocks (C, D, E; 2026-09-25)
 
