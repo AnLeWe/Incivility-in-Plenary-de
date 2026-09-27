@@ -82,6 +82,10 @@ def load_output():
 def save_annotation(para_id, dataset, state, politeness, moral,
                     justificatory, interjection, notes, annotator_name):
     out = load_output()
+    # store multiselect choices in the config's option order, not click order,
+    # so the same selection always yields the same string
+    interjection_info = LABELS["interjection"]
+    interjection = [o for o in interjection_info["options"] if o in (interjection or [])]
     row = {
         "para_id": str(para_id),
         "dataset": dataset,
@@ -89,7 +93,7 @@ def save_annotation(para_id, dataset, state, politeness, moral,
         "politeness": politeness,
         "moral": moral,
         "justificatory": justificatory,
-        "interjection": "|".join(interjection) if isinstance(interjection, list) and interjection else "neutral",
+        "interjection": "|".join(interjection) if interjection else interjection_info["empty_label"],
         "notes": notes,
         "annotator_id": ANNOTATOR_ID,
         "annotator_name": annotator_name.strip() or None,
@@ -281,7 +285,7 @@ with st.form("annotation_form", clear_on_submit=False):
             existing_val = get_existing(dim)
             if info.get("multi"):
                 empty_label = info.get("empty_label", "neither")
-                # empty selection or saved "neither" → default to []
+                # empty selection or saved empty_label ("neutral") → default to []
                 if isinstance(existing_val, str) and existing_val and existing_val != empty_label:
                     default_multi = [v for v in existing_val.split("|") if v in info["options"]]
                 else:

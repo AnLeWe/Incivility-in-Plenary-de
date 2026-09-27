@@ -1,5 +1,11 @@
 import os
 
+from dotenv import load_dotenv
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# an already-exported DATA_ROOT wins; otherwise take it from the repo's .env
+load_dotenv(os.path.join(REPO_ROOT, ".env"))
 DATA_ROOT = os.environ["DATA_ROOT"]
 
 LABELS = {
@@ -53,7 +59,7 @@ DEFINITIONS = {
     ),
     "interjection": (
         "Art und Bezug der Unterbrechung zum/zur aktuellen Sprecher:in.\n\n"
-        "**Unterstützend - eigen**: Beifall oder Zustimmung aus der eigenen Fraktion.\n\n"
+        "**Unterstützend - selbst**: Beifall oder Zustimmung aus der eigenen Fraktion.\n\n"
         "**Unterstützend - fremd**: Beifall oder Zustimmung aus einer anderen Fraktion — "
         "demokratisch bedeutsam als Zeichen fraktionsübergreifender Solidarität.\n\n"
         "**Zwischenruf**: verbale Einwürfe oder Reaktionen während der Rede einer anderen Person — "
@@ -88,4 +94,4 @@ DATASETS = {
     },
 }
 
-OUTPUT_FILE = "labelling/annotations_output.csv"
+OUTPUT_FILE = os.path.join(REPO_ROOT, "labelling", "annotations_output.csv")
