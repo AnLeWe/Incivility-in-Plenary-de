@@ -10,6 +10,31 @@ def test_build_prompt_includes_system_and_user_message():
     assert messages[1] == {"role": "user", "content": "Das ist eine Frechheit!"}
 
 
+def test_build_prompt_with_context_labels_window_and_ordnungsruf_hint():
+    context = {
+        "prev": {"label": "PRÄSIDIUM", "text": "Bitte, Herr Dr. Kuhn!", "same_speaker_turn": False},
+        "next": {"label": "GRN", "text": "Plant der Senat...", "same_speaker_turn": True},
+        "ordnungsruf_follows": True,
+    }
+
+    messages = build_prompt("Wir fragen den Senat:", context)
+    user_content = messages[1]["content"]
+
+    assert "[VORHERIGER ABSATZ – PRÄSIDIUM, andere Sprechperson]\nBitte, Herr Dr. Kuhn!" in user_content
+    assert "[ZU BEWERTENDER ABSATZ]\nWir fragen den Senat:" in user_content
+    assert "[NACHFOLGENDER ABSATZ – GRN, gleiche Sprechperson]\nPlant der Senat..." in user_content
+    assert "Ordnungsruf erteilt" in user_content
+
+
+def test_build_prompt_with_empty_context_omits_window_markers():
+    context = {"prev": None, "next": None, "ordnungsruf_follows": False}
+
+    messages = build_prompt("Ein Redebeitrag ohne Kontext.", context)
+    user_content = messages[1]["content"]
+
+    assert user_content == "[ZU BEWERTENDER ABSATZ]\nEin Redebeitrag ohne Kontext."
+
+
 def test_parse_response_valid_impolite():
     raw = json.dumps({"impolite": True, "reason": "Beleidigung."})
 
