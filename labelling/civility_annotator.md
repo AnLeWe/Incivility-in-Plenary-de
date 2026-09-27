@@ -5,6 +5,16 @@ dimensions plus interruption type. It is a prototype. The annotation setup for t
 (Label Studio, codebook) is being built separately, in the `incivility_annotation` project, and does
 not use this app or its output.
 
+## Requirements
+
+1. A clone of this repo.
+2. `norm_env` (includes `streamlit` and `python-dotenv`).
+3. A `.env` in the repo root with `DATA_ROOT` set (copy `.env.example`).
+4. Read access to the three input files below, about 630 MB together. Normally this means the
+   shared Google Drive folder synced with the Drive desktop app (see the README's "Data access"
+   section). Any local folder holding `labelling/annotations_input_{2010,2018,2021}_v3.csv` works
+   as `DATA_ROOT` too.
+
 ## Running it
 
 ```bash
