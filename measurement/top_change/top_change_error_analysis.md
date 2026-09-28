@@ -14,6 +14,35 @@ Each reviewed case gets one of these verdicts:
 - `ambiguous`: the annotation conventions don't settle the case. Resolve it in
   `labelling/top_boundaries_annotation_conventions.md` first.
 
+## BERT with surrounding speeches: G2, 2026-09-28
+
+Same procedure as G0 and G1 (frozen folds and early-stopping slice, patience 1, cutoff 0). Input,
+in the order it was spoken: `[CLS] Davor: <last 2 paragraphs of the speech before, ≤200 tokens>
+[SEP] Zielblock: <block> [SEP] Danach: <first 2 paragraphs of the speech after, ≤200 tokens> [SEP]`.
+The speeches come from the raw paragraphs and are restricted to the gap to the neighbouring chair
+blocks. 99% of blocks have a speech on both sides. The block itself is cut for 9.2% of openers (G0:
+6.2%). Checkpoint: `bert_oof_checkpoint_speeches.pkl`.
+
+| | F1 | P | R | macro-F1 | PR-AUC | FP | FN | question openers missed (of 226) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| G0 | 0.922 | 0.945 | 0.906 | 0.956 | 0.949 | 49 | 91 | 63 |
+| G2 | 0.925 | 0.934 | 0.920 | 0.958 | 0.977 | 61 | 76 | 48 |
+
+- On par with G0 overall: F1 G2 − G0 per fold −0.017, +0.005, −0.005, +0.006, +0.031 (better in
+  three folds, worse in two, mean gain within noise). The PR-AUC gain comes mostly from fold 1
+  (0.872 → 0.982); the other folds move between −0.007 and +0.028.
+- Fixes question calls without a subject, as intended: 48 instead of 63 missed question openers;
+  BE errors 31 → 18 (be_18_21 "Dann können wir noch mit einer kurzen Frage starten. – Frau
+  Pieroth-Manelli!"), st_8_3 "Die nächste Frage kommt von Herrn Lizureck." now found.
+- Breaks others: NI follow-up calls ("Die nächste Frage wird von Herrn Limburg … gestellt.",
+  ni_16_37) become FPs, since the speech after them is also a question and only NI's labelling
+  treats it as a follow-up (NI errors 2 → 14). Some TH calls that G0 found are missed (th_7_38 "Die
+  nächste Frage stellt Herr Abgeordneter Worm … in Drucksache 7/2719.").
+- Best epochs 1, 3, 3, 4, 3. Training took about 330 minutes over all folds (G0: about 83), slowed
+  by swap.
+- Choice: G0 is simpler at the same F1. G2 is better if finding question openers matters most. The
+  NI/BY conflict over what counts as a new question is a labelling question more than a model one.
+
 ## BERT rerun: G0 (block only) and G1 (+ context), 2026-09-27
 
 Same bridged blocks, frozen outer folds and pre-fix labels as C and D. Both variants use the

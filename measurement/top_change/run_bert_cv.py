@@ -20,7 +20,10 @@ from sklearn.model_selection import StratifiedGroupKFold
 nb = json.load(open("top_change_classification_v1_v2.ipynb"))
 ids = [c.get("id") for c in nb["cells"]]
 g = globals()
-for cid in ["2c7423aa", "679939eb", "b7d4c2a9", "82fa0764", "c77fcd37", "614a6873", "13fee2e5", "cd2b933d", "52d5f001"]:
+# data preparation, split, rule baseline, nested-CV helpers, frozen folds, BERT input checks,
+# surrounding speeches (G2), BERT training
+for cid in ["2c7423aa", "679939eb", "b7d4c2a9", "82fa0764", "c77fcd37", "614a6873", "13fee2e5", "cd2b933d",
+            "f1a2b3c1", "f1a2b3c3", "52d5f001"]:
     print(f"--- running cell {ids.index(cid)} ({cid})", flush=True)
     exec("".join(nb["cells"][ids.index(cid)]["source"]), g)
 print("BERT CV finished", flush=True)
