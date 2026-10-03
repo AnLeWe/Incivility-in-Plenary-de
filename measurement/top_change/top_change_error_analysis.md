@@ -14,6 +14,97 @@ Each reviewed case gets one of these verdicts:
 - `ambiguous`: the annotation conventions don't settle the case. Resolve it in
   `labelling/top_boundaries_annotation_conventions.md` first.
 
+## Windows for long blocks: G0w vs G0, 2026-10-03
+
+G0w splits blocks over 1,000 tokens into windows at paragraph boundaries (up to 2 trailing
+paragraphs repeated, at most 256 tokens), trains on the windows (labelled opener if one of their
+paragraphs is) and scores a block by its highest window. Motivation: two of G0's four test misses
+were openers past the 1,024-token window. Rule fixed before the run: G0w replaces G0 if its CV F1
+and macro-F1 are not lower. Both CVs ran on the relabelled cv_pool (937 openers).
+
+| CV, mean of 5 folds | G0 | G0w |
+| --- | --- | --- |
+| F1 | 0.9234 | 0.9221 |
+| macro-F1 | 0.9565 | 0.9555 |
+| FP / FN (sum) | 50 / 88 | 67 / 80 |
+| best epochs | 2, 3, 4, 5, 2 | 1, 1, 5, 1, 1 |
+
+G0 stays. The per-fold F1 differences (+0.02, -0.025, +0.01, -0.02, +0.009) are noise. On the 75
+long blocks both catch all 66 openers (FP 4 vs 5), so the difference comes from the short blocks
+both see identically, i.e. from G0w stopping after epoch 1 in four folds. The CV has no
+long-block misses, so it cannot show the gain windowing was meant for; the test split had two.
+Production model: G0, 3 epochs (mean best epoch 3.2).
+
+## Production model, second test scoring and corpus run, 2026-10-03
+
+Decided 2026-10-03: no refit on cv_pool + test. The production model is the evaluated one, G0
+trained on the relabelled `cv_pool` (7,541 blocks, 937 openers) for 3 epochs (`run_bert_final.py`,
+`DATA_ROOT/models/top_change/g0_block_cv_pool`). The test split was scored a second time with it,
+after the relabel (test: 210 openers, mv_4_74/1534 → False). C refit on `cv_pool`: C=1.0,
+threshold −0.774.
+
+| model | F1 | P | R | macro-F1 | MCC | PR-AUC | FP | FN |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| rule-based detector | 0.725 | 0.992 | 0.571 | 0.848 | 0.731 | 0.619 | 1 | 90 |
+| C | 0.932 | 0.913 | 0.952 | 0.961 | 0.923 | 0.929 | 19 | 10 |
+| G0 | 0.981 | 0.972 | 0.990 | 0.989 | 0.979 | 0.999 | 6 | 2 |
+
+Protocol bootstrap: G0 F1 0.964-0.994, G0 minus C +0.026 to +0.076. CV means on the relabelled
+cv_pool: G0 0.923, C 0.886, rule 0.678. G0's two misses are the truncation cases (mv_4_74/945-1021,
+bb_4_14/889-937); rp_17_10/1 is now found. FPs: three SL question-time remarks (sl_16_41/169, 50-52,
+90), be_17_15/3490-3516 (Einzelplan votes), sn_6_38/509-515 (referral of the budget bills),
+ni_14_77/469-470 (a persönliche Bemerkung).
+
+Corpus run (`score_corpus.py --model g0_block_cv_pool --since 2009-09-29`): 1,604,315 pre paragraphs
+in 6,094 protocols → 636,021 blocks, 73,012 predicted openers (11.5%), in
+`DATA_ROOT/measurement/top_change/top_openers_g0_block_cv_pool_since_2009-09-29.parquet`. `--check`
+rebuilds the notebook's 9,249 labelled blocks exactly and reproduces the test scores exactly. 24
+protocols get no predicted opener (median 2 blocks; RP 8, SH 8, HB 4). Opener share by state ranges
+from 7.8% (SH) to 20.2% (SL, numbered questions in question time).
+
+## Final evaluation on the test split, first scoring (old labels), 2026-10-02
+
+The held-out test split (16 protocols, one per state, 1,708 blocks, 211 openers) was opened once.
+G0 (block only) was trained on all of `cv_pool` with the CV recipe for a fixed 3 epochs
+(`run_bert_final.py`), C was refit on `cv_pool` with C and threshold chosen on its OOF scores
+(C=0.3, threshold 0.034). Before opening, sn_6_38/1, th_5_84/1 and hh_18_14/6 were relabelled
+under the Sitzungseröffnung rule; no block label changed.
+
+| model | F1 | P | R | macro-F1 | MCC | PR-AUC | FP | FN |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| rule-based detector | 0.723 | 0.992 | 0.569 | 0.847 | 0.729 | 0.617 | 1 | 91 |
+| C | 0.931 | 0.929 | 0.934 | 0.961 | 0.922 | 0.927 | 15 | 14 |
+| G0 | 0.981 | 0.981 | 0.981 | 0.989 | 0.978 | 0.998 | 4 | 4 |
+
+Protocol bootstrap (2,000 resamples): G0 F1 0.963-0.993, G0 minus C +0.026 to +0.075 (G0 ahead in
+every resample). Test is above the CV mean for all three models (G0 0.922 in CV), within the CV
+fold spread. The CV mean stays the conservative estimate for new protocols.
+
+G0's test errors:
+
+- FN, truncation: mv_4_74/945-1021 (73 paragraphs, True rows from token 3,961) and
+  bb_4_14/889-937 (44 paragraphs, True row at token 1,997). Vote blocks that end with the call of
+  the next item; the opener lies past the 1,024-token window. In the CV only 7 openers started past
+  the window, all caught through earlier cues.
+- FN: rp_17_10/1, session opening by greeting without "eröffne".
+- FN: mv_4_74/1534, "persönliche Bemerkung außerhalb der Tagesordnung" after a break, True with
+  topic "??". The label is questionable.
+- FP: be_17_15/3490-3516, votes on several Einzelpläne inside one budget item.
+- FP: sn_6_38/509-515, referral of the budget bills to committee after the debate.
+- FP: sl_16_41/169 and 50-52, question-time management ("Die letzte Möglichkeit einer Zusatzfrage,
+  Frage Nummer 6", "Bitte die nächste Frage").
+
+Where G0 fails in the CV (out-of-fold, `cv_pool`): 63 of its 91 misses are question openers, 8 are
+Einzelplan calls (6 from he_18_26), 67 sit in blocks of 1-3 paragraphs. Question-opener recall is
+1.00 in BW, TH, MV, RP and NI, where the chair says "Ich rufe die Frage N auf", but 0.07 (BY),
+0.13 (SN), 0.35 (BE), 0.38 (HH) and 0.54 (HE), where a question is opened by calling the speaker.
+
+The model trained on `cv_pool`, which produced the test scores, is in
+`DATA_ROOT/models/top_change/g0_block_cv_pool` (weights, tokenizer, `model_card.json`). Decided
+2026-10-03: this evaluated model is the production model. No refit on cv_pool + test, so the
+reported test score belongs to the model that scores the corpus. (A refit on all 9,249 blocks
+was trained on 2026-10-02 as `g0_block_final`; it is not used.)
+
 ## BERT with surrounding speeches: G2, 2026-09-28
 
 Same procedure as G0 and G1 (frozen folds and early-stopping slice, patience 1, cutoff 0). Input,
@@ -774,13 +865,27 @@ all of v2 on its own.
 ## Open follow-ups
 
 - Relabel hb_19_10/412 to `is_opener=True`, `topic=Prozedural` in
-  `top_boundaries_opener_labels_v2.csv` (decided 2026-09-24, not applied yet). Then
-  add a rule to the conventions for Konsensliste headings and for withdrawn items
-  like 411.
+  `top_boundaries_opener_labels_v2.csv` (decided 2026-09-24, applied 2026-10-03; no
+  block label change, the block already had 420 True). Still open: a rule in the
+  conventions for Konsensliste headings and for withdrawn items like 411.
+- Applied 2026-10-03, together with hb_19_10/412: hb_19_10/1542 → True (no block
+  change), mv_6_4/501 → False with type/sponsor/topic cleared (block 500-501 flips to
+  non-opener), be_18_21 opener moved 582 → 580 (no block change), hb_16_51/176 → True,
+  Anfrage/SPD/Gesundheit (block 175-177 flips to opener). Same persönliche-Bemerkung
+  rule applied in the test split: mv_4_74/1534 → False (block 1529-1534 flips to
+  non-opener). This changes a test label after the test results were seen, but it
+  follows the rule decided on cv_pool (mv_6_4/501). The CV and the final models are
+  rerun on these labels.
 - Apply the Sitzungseröffnung rule to v2: set `is_opener=True`,
   `topic=Prozedural` on the seven rows in the table above in
-  `top_boundaries_opener_labels_v2.csv` (not applied yet). Then rerun the nested
-  CV, since the fold results include these contributions.
+  `top_boundaries_opener_labels_v2.csv`. Done 2026-10-02 for the two test-split
+  protocols, sn_6_38/1 and th_5_84/1, plus hh_18_14/6 ("Die Sitzung ist wieder
+  eröffnet" after a break, also test split). No block label changed: each
+  block already had a True row. The five cv_pool rows (he_18_26/1, st_6_70/2,
+  st_8_3/2, th_4_67/1, th_7_38/1) followed on 2026-10-03 (he_18_26/1 already had
+  topic=Prozedural but is_opener=0). Two block labels flip to opener: th_4_67/1-21
+  and st_6_70/1-22. All CV checkpoints and the final models are rerun on the new
+  labels. Done.
 - Decide whether contributions should join across `nsc` rows (all of them, or only
   citation-only ones like "(Drucksache 17/1633)"). This changes the unit of
   analysis, so all folds would need a rerun.
@@ -805,6 +910,12 @@ all of v2 on its own.
   text from training and from unseen data with the same rule, since it is not
   plenary speech. This needs a reliable end-of-sitting / annex detector. A loose
   "Sitzung … geschlossen" pattern also matches opening and scheduling lines.
+  Plan (filed 2026-10-03): drop `pre` rows after the sitting's last spoken chair row,
+  for training and for unseen protocols alike. First count how many protocols in
+  other states also carry a printed annex tagged `pre`. Matters more for G0w: the
+  annex block becomes dozens of windows, all False, and one window that fires makes
+  the whole block an FP. Removing annexes changes the blocks, so the CV needs a
+  rerun afterwards.
 - Try paragraph-level scoring with max aggregation per contribution for D, as
   the rule-based detector does. It targets both the diluted borderline FNs and the
   long-block FPs.
@@ -812,12 +923,6 @@ all of v2 on its own.
   label, or context from the following speech.
 - Check sn_7_52/1789 and /1815 (Kleine Anfragen treated in the plenum, labelled False, look
   like a TOP opener and a question-level opener). Found through BERT's top FPs.
-- Relabel hb_19_10/1542 to True (TOP heading, Umwelt), mv_6_4/501 to False
-  (persönliche Bemerkung), and move be_18_21/582's opener to 580 (not applied
-  yet).
-- Relabel hb_16_51/176 ("Die zweite Anfrage bezieht sich auf die Entwicklung der
-  Arzneikosten …") to True, as for the other nine Anfragen in that Fragestunde (not
-  applied yet).
 - Decide on rp_15_48/234 ("Ich rufe die Aussprache über die Mündliche Anfrage …
   auf"). The same construction is True in rp_15_44/280 and /439, so either relabel
   it or change both rp_15_44 rows.

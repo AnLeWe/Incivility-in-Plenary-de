@@ -172,15 +172,24 @@ presiding officer's paragraphs opens a new TOP or thematic unit, on both annotat
 (95 protocols). Consecutive `pre` paragraphs are joined into blocks, also across interjection-only
 (`nsc`) gaps. It compares chance baselines, the rule-based detector
 (`preprocessing/top_boundaries.py`), bag-of-words models with nested C/threshold tuning, and a
-fine-tuned German encoder (ModernGBERT) with the neighbouring blocks as context.
+fine-tuned German encoder (ModernGBERT_134M) on the block alone, with neighbouring chair blocks,
+and with the surrounding speeches.
 
 - Folds are frozen per protocol in `measurement/top_change/fold_assignment.csv`, so label fixes don't
   reshuffle them.
-- Out-of-fold predictions are checkpointed (`nested_oof_checkpoint.pkl`, `bert_oof_checkpoint.pkl`),
-  so the notebook runs in minutes. The BERT folds are trained in a separate process with
-  `norm_env/bin/python measurement/top_change/run_bert_cv.py` (about 2.5 h on an Apple-silicon Mac).
-- The held-out test split (1 protocol per state) is not opened yet; the final model evaluation is
-  pending.
+- Out-of-fold predictions are checkpointed (`nested_oof_checkpoint.pkl`,
+  `bert_oof_checkpoint_<variant>.pkl`), so the notebook runs in minutes. The BERT folds are trained
+  in a separate process with `norm_env/bin/python measurement/top_change/run_bert_cv.py`.
+- Final model: ModernGBERT on the block alone (G0). On the held-out test split (1 protocol per
+  state, 16 protocols), it reaches F1 0.981 (CV mean 0.923), against 0.932 for the best
+  bag-of-words model and 0.725 for the rule-based detector.
+  `norm_env/bin/python measurement/top_change/run_bert_final.py` trains it on the CV pool (about
+  20 min) and saves it to `DATA_ROOT/models/top_change/`. That evaluated model is the production
+  model; the test split is never trained on.
+- `norm_env/bin/python measurement/top_change/score_corpus.py --model g0_block_cv_pool` scores all
+  chair blocks of the corpus from 2009-09-29 (636,021 blocks, about 2 h on an Apple-silicon Mac) into
+  `DATA_ROOT/measurement/top_change/`. `--check` first confirms it rebuilds the training blocks and
+  reproduces the test scores.
 - `measurement/top_change/top_change_error_analysis.md` records the error reviews and the label
   fixes they led to.
 
