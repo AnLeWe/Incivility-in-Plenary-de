@@ -13,8 +13,9 @@ Output (DATA_ROOT/measurement/top_change/):
 Scores are written in chunks to a _chunks/ folder first, so an interrupted run resumes.
 
 Usage:
-  norm_env/bin/python measurement/top_change/score_corpus.py --model g0w_windows_cv_pool --since 2009-09-29
-  norm_env/bin/python measurement/top_change/score_corpus.py --model g0w_windows_cv_pool --check
+  norm_env/bin/python measurement/top_change/score_corpus.py --model g0_block_cv_pool --since 2009-09-29
+  norm_env/bin/python measurement/top_change/score_corpus.py --model g0_block_cv_pool --check
+(run from the repo root; g0_block_cv_pool is the production model)
 --check rebuilds blocks and windows for the 95 labelled protocols and compares them with the
 notebook's, then scores the test split with the given cv_pool model and compares with the stored
 test predictions. Nothing is written.
