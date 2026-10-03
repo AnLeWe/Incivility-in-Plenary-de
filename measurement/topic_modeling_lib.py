@@ -78,32 +78,41 @@ def load_corpus(
     pre_post: str | None = None,
     sample_n: int | None = None,
     seed: int = 42,
+    corpus_file: str = "speeches_afd_prepost.parquet",
+    min_words: int | None = None,
 ) -> pd.DataFrame:
-    """Reads DATA_ROOT/processed/speeches_afd_prepost.parquet (built once by
-    preprocessing/afd_period_window.py) and filters/samples it -- this function never rebuilds
-    the pre/post-AfD window itself."""
-    path = os.path.join(data_root, "processed", "speeches_afd_prepost.parquet")
+    """Reads a document table from DATA_ROOT/processed/ and filters/samples it -- this function
+    never rebuilds the table itself. `corpus_file` is speeches_afd_prepost.parquet (one document
+    per speech, built by preprocessing/afd_period_window.py) or tops_since_<date>.parquet (one per
+    agenda item, built by measurement/top_change/build_top_segments.py; has no pre_post column).
+    `min_words` drops documents with fewer whitespace-separated words."""
+    path = os.path.join(data_root, "processed", corpus_file)
     df = pd.read_parquet(path)
 
     if states is not None:
         df = df[df["state"].isin(states)]
     if pre_post is not None:
         df = df[df["pre_post"] == pre_post]
+    if min_words is not None:
+        df = df[df["text"].str.split().str.len() >= min_words]
     if sample_n is not None:
         df = df.sample(n=sample_n, random_state=seed)
 
     return df.reset_index(drop=True)
 
 
-def make_spacy_preprocessor(nlp) -> Callable[[list[str]], list[list[str]]]:
+def make_spacy_preprocessor(nlp, n_process: int = 1, batch_size: int = 1000) -> Callable[[list[str]], list[list[str]]]:
     """Returns a tokenize/lemmatize/stopword-removal function bound to `nlp`. Passed a
     spacy.blank("de") in tests (fast, no model download) and spacy.load("de_core_news_lg") in
     the real notebook -- this indirection is what makes preprocessing swappable without
     changing build_gensim_corpus/build_sklearn_corpus, which only ever see the token lists this
-    produces."""
+    produces. `n_process` > 1 runs nlp.pipe in parallel worker processes; `batch_size` is how many
+    documents each worker parses at once -- keep it small for long documents (agenda items run to
+    100k words), since a batch's parsed tokens are all held in memory. Neither changes the tokens."""
 
     def _preprocess(texts: list[str]) -> list[list[str]]:
-        docs = nlp.pipe(texts, disable=[p for p in ("parser", "ner") if p in nlp.pipe_names])
+        docs = nlp.pipe(texts, disable=[p for p in ("parser", "ner") if p in nlp.pipe_names],
+                        n_process=n_process, batch_size=batch_size)
         result = []
         for doc in docs:
             tokens = []
@@ -116,6 +125,48 @@ def make_spacy_preprocessor(nlp) -> Callable[[list[str]], list[list[str]]]:
         return result
 
     return _preprocess
+
+
+def tokenize_by_paragraph(
+    preprocess: Callable[[list[str]], list[list[str]]], texts: list[str]
+) -> list[list[str]]:
+    """Tokenizes each text paragraph by paragraph (split on newlines) and joins the tokens back
+    per text. spaCy holds a whole document in memory while parsing it, so this bounds memory by
+    the longest paragraph instead of the longest document (agenda items run to 100k words)."""
+    paragraphs, owner = [], []
+    for i, text in enumerate(texts):
+        for paragraph in text.split("\n"):
+            paragraphs.append(paragraph)
+            owner.append(i)
+    result = [[] for _ in texts]
+    for i, tokens in zip(owner, preprocess(paragraphs)):
+        result[i].extend(tokens)
+    return result
+
+
+def tokenize_in_chunks(
+    preprocess: Callable[[list[str]], list[list[str]]],
+    texts: list[str],
+    params: dict,
+    chunk_size: int = 2000,
+) -> list[list[str]]:
+    """Runs `preprocess` over `texts` in chunks of `chunk_size` documents and caches each chunk
+    under params | {"artifact": "tokenized_chunk", ...}, so an interrupted run resumes at the first
+    missing chunk instead of starting over. The result is the same as preprocess(texts). To
+    tokenize paragraph by paragraph, pass lambda chunk: tokenize_by_paragraph(preprocess, chunk)."""
+    result = []
+    n_chunks = -(-len(texts) // chunk_size)
+    for i in range(n_chunks):
+        lo, hi = i * chunk_size, min((i + 1) * chunk_size, len(texts))
+        chunk_params = {**params, "artifact": "tokenized_chunk", "chunk_size": chunk_size, "chunk": i, "n_docs": len(texts)}
+        tokens = load_cache(chunk_params, suffix=".pkl")
+        if tokens is None:
+            start = time.perf_counter()
+            tokens = preprocess(texts[lo:hi])
+            save_cache(tokens, chunk_params, suffix=".pkl")
+            print(f"[chunk {i + 1}/{n_chunks}] {hi - lo} documents in {time.perf_counter() - start:.0f}s", flush=True)
+        result.extend(tokens)
+    return result
 
 
 def build_gensim_corpus(tokenized_docs: list[list[str]]) -> tuple[corpora.Dictionary, list]:

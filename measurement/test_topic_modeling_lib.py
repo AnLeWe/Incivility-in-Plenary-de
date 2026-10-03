@@ -85,6 +85,17 @@ def test_load_corpus_defaults_to_everything(tmp_path):
     assert len(result) == 4
 
 
+def test_load_corpus_reads_another_file_and_drops_short_documents(tmp_path):
+    proc = tmp_path / "processed"
+    proc.mkdir(parents=True)
+    pd.DataFrame({"top_id": ["t1", "t2"], "state": ["by", "th"],
+                  "text": ["one two three", "one"]}).to_parquet(proc / "tops.parquet", index=False)
+
+    result = load_corpus(str(tmp_path), corpus_file="tops.parquet", min_words=2)
+
+    assert list(result["top_id"]) == ["t1"]
+
+
 def test_load_corpus_samples_deterministically(tmp_path):
     _write_fixture_corpus(tmp_path)
 
@@ -278,3 +289,32 @@ def test_sklearn_search_shares_cache_entry_for_equivalent_n_iter(tmp_path, monke
     sklearn_loglikelihood_search(dtm, vectorizer, _TOY_DOCS, dictionary, k_range=[2, 3], params=params, n_iter=2)
 
     assert len(list(tmp_path.glob("*.pkl"))) == 1
+
+
+from topic_modeling_lib import tokenize_in_chunks
+
+
+def test_tokenize_in_chunks_matches_one_pass_and_resumes_from_cache(tmp_path, monkeypatch):
+    import topic_modeling_lib
+    monkeypatch.setattr(topic_modeling_lib, "CACHE_DIR", tmp_path)
+    preprocess = make_spacy_preprocessor(spacy.blank("de"))
+    texts = ["Der Landtag berät heute", "Haushalt und Finanzen", "Schule Bildung Lehrer", "Polizei"]
+
+    first = tokenize_in_chunks(preprocess, texts, {"run": "x"}, chunk_size=3)
+    calls = []
+    second = tokenize_in_chunks(lambda chunk: calls.append(chunk) or preprocess(chunk), texts, {"run": "x"}, chunk_size=3)
+
+    assert first == preprocess(texts) == second
+    assert calls == []  # both chunks came from the cache
+
+
+from topic_modeling_lib import tokenize_by_paragraph
+
+
+def test_tokenize_by_paragraph_joins_paragraph_tokens_per_text():
+    preprocess = make_spacy_preprocessor(spacy.blank("de"))
+    texts = ["Haushalt Finanzen\nSchule Bildung", "Polizei"]
+
+    result = tokenize_by_paragraph(preprocess, texts)
+
+    assert result == [preprocess(["Haushalt Finanzen"])[0] + preprocess(["Schule Bildung"])[0], preprocess(["Polizei"])[0]]
