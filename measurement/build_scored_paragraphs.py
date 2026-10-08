@@ -15,6 +15,9 @@ the TOP side table of build_top_segments.py, and writes
     top_start         True on the first row of each TOP found by the opener model (top_seq >= 1)
   DATA_ROOT/processed/scored_paragraphs_<state>_<model>_<variant>.json   inputs, counts, run date
 
+Without a morality file for the state (Bavaria so far), moral_civility and moral_reason stay empty and the
+sidecar lists the morality input as null.
+
 Rows are ordered by state, date, protocol_id, protocol_position, segment_idx.
 
 Usage: norm_env/bin/python measurement/build_scored_paragraphs.py --state sn --model gemma4-12b --variant baseline
@@ -50,10 +53,15 @@ def main():
 
     imp = (pd.read_csv(inputs["impoliteness"], usecols=KEY + ["content", "impolite", "reason"])
              .rename(columns={"content": "segment_text", "reason": "impolite_reason"}))
-    mor = (pd.read_csv(inputs["morality"], usecols=KEY + ["moral_civility", "reason"])
-             .rename(columns={"reason": "moral_reason"}))
-    scores = imp.merge(mor, on=KEY, how="outer", validate="one_to_one", indicator=True)
-    assert (scores.pop("_merge") == "both").all(), "impoliteness and morality were scored on different rows"
+    if inputs["morality"].exists():
+        mor = (pd.read_csv(inputs["morality"], usecols=KEY + ["moral_civility", "reason"])
+                 .rename(columns={"reason": "moral_reason"}))
+        scores = imp.merge(mor, on=KEY, how="outer", validate="one_to_one", indicator=True)
+        assert (scores.pop("_merge") == "both").all(), "impoliteness and morality were scored on different rows"
+    else:
+        print(f"NOTE: no {inputs['morality'].name}, impoliteness only (morality columns stay empty)")
+        scores = imp.assign(moral_civility=pd.Series(dtype="string"), moral_reason=pd.Series(dtype="string"))
+        inputs["morality"] = None
     nsc = pd.read_parquet(inputs["nsc"], columns=KEY + ["nsc_type"]).drop_duplicates(KEY)
     scores = scores.merge(nsc, on=KEY, how="left", validate="one_to_one")
 
@@ -75,7 +83,7 @@ def main():
     out.to_parquet(root / "processed" / f"{stem}.parquet", index=False)
     meta = {
         "run_date": date.today().isoformat(),
-        "inputs": {k: str(v.relative_to(root)) for k, v in inputs.items()},
+        "inputs": {k: str(v.relative_to(root)) if v else None for k, v in inputs.items()},
         "n_rows": len(out),
         "n_paragraphs": int(out["paragraph_id"].nunique()),
         "n_scored_rows": len(scores),

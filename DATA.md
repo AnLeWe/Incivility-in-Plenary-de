@@ -32,7 +32,7 @@ Started 2026-10-03 from a grep over the code, so producer/reader lists may be in
 | `top_boundaries.parquet` | `preprocessing/top_boundaries.py` (rule-based detector) | `measurement/top_change/top_boundaries_exploration.ipynb` | legacy (replaced by the BERT TOP model) |
 | `top_segments_since_2009-09-29.parquet` | `measurement/top_change/build_top_segments.py` | `measurement/top_change/top_segments_exploration.ipynb` | current |
 | `tops_since_2009-09-29.parquet` | `measurement/top_change/build_top_segments.py` | `measurement/topic_modeling.ipynb`, `top_segments_exploration.ipynb`, `incivility_annotation/data/draw_sample.py` | current |
-| `scored_paragraphs_<state>_<model>_<variant>.{parquet,json}` | `measurement/build_scored_paragraphs.py` (joins the `impoliteness_full_*`/`morality_full_*` scores, all paragraphs of their protocols and `top_segments_since_*`) | `incivility_annotation/data/draw_sample.py --scored` | current |
+| `scored_paragraphs_<state>_<model>_<variant>.{parquet,json}` | `measurement/build_scored_paragraphs.py` (joins the `impoliteness_full_*`/`morality_full_*` scores (morality optional: `by` has impoliteness only), all paragraphs of their protocols and `top_segments_since_*`) | `incivility_annotation/data/draw_sample.py --scored` | current |
 | `audit_strat_sample_state_year_party.csv` | `analysis/nsc_analysis.ipynb` | same | current |
 | `interjections.parquet` | nothing in the current code | nothing | legacy |
 | `fliesstext_bb_20180627.txt` | `src/fliesstext_bb_2018.py` | ? | ? |
@@ -83,6 +83,8 @@ is read by `analysis/impoliteness_analysis.ipynb`.
 - `incivility_annotation/data/sample_labelled_tops_n100_seed20261003.csv`: oTree prototype sample
   (TOPs with hand topics from the gold labels above, one row per paragraph), plus `practice_top.csv`,
   written by `incivility_annotation/data/draw_sample.py`.
-- `incivility_annotation/data/practice_tops_<state>_<model>_<variant>_top3.csv`: the 3 most uncivil
-  TOPs by Gemma score (300-1500 words), written by `draw_sample.py --scored`.
+- `incivility_annotation/data/practice_tops_<state>_<model>_<variant>_top3_<words>.csv`: the 3 most uncivil
+  TOPs by Gemma score (impoliteness only where morality was not scored, `by`), one per protocol, written by
+  `draw_sample.py --scored`; `<words>` = `max1500words` (300-1500 words), `nocap` (300+) or `min1501words`
+  (1501+). Expert sets of the oTree app: `sn` = max1500words + nocap, `by` = max1500words + min1501words.
 - `incivility_annotation/data/quiz.csv`: quiz items with reference labels, hand-written (placeholders now).
